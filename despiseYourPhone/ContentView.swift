@@ -58,7 +58,7 @@ struct ContentView: View {
                     }
                 }
             }
-            .navigationTitle("despiseYourPhone")
+            .navigationTitle("DespiseYourPhone")
             .familyActivityPicker(isPresented: DemoMode.isOn ? .constant(false) : $showingPicker, selection: $selection)
             .sheet(isPresented: DemoMode.isOn ? $showingPicker : .constant(false)) {
                 DemoAppPicker(selected: $demoSelection)
