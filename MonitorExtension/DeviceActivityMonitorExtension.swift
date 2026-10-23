@@ -11,7 +11,8 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
 
     override func intervalDidEnd(for activity: DeviceActivityName) {
         super.intervalDidEnd(for: activity)
-        if activity == .dailySchedule {
+        // Leave the shield up if Block now is still on.
+        if activity == .dailySchedule, !BlockStore.blockNow {
             BlockStore.clearShield()
         }
     }

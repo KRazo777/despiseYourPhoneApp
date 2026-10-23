@@ -25,9 +25,9 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
             backgroundBlurStyle: .systemUltraThinMaterialDark,
             backgroundColor: .black,
             icon: UIImage(systemName: "hourglass"),
-            title: .init(text: "\(name ?? "This app") is blocked", color: .white),
-            subtitle: .init(text: "Take a breath. Is this what you meant to do?", color: .lightGray),
-            primaryButtonLabel: .init(text: "Close", color: .black),
+            title: .init(text: ShieldCopy.title(for: name), color: .white),
+            subtitle: .init(text: ShieldCopy.subtitle, color: .lightGray),
+            primaryButtonLabel: .init(text: ShieldCopy.closeButton, color: .black),
             primaryButtonBackgroundColor: .white
         )
     }

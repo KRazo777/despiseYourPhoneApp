@@ -67,17 +67,17 @@ struct ShieldPreview: View {
                 Image(systemName: "hourglass")
                     .font(.system(size: 56))
                     .foregroundStyle(.white)
-                Text("\(appName) is blocked")
+                Text(ShieldCopy.title(for: appName))
                     .font(.title2.bold())
                     .foregroundStyle(.white)
-                Text("Take a breath. Is this what you meant to do?")
+                Text(ShieldCopy.subtitle)
                     .foregroundStyle(Color(uiColor: .lightGray))
                     .multilineTextAlignment(.center)
                 Spacer()
                 Button {
                     dismiss()
                 } label: {
-                    Text("Close")
+                    Text(ShieldCopy.closeButton)
                         .font(.headline)
                         .foregroundStyle(.black)
                         .frame(maxWidth: .infinity)
@@ -88,4 +88,12 @@ struct ShieldPreview: View {
             .padding(24)
         }
     }
+}
+
+#Preview("App picker") {
+    DemoAppPicker(selected: .constant(["Instagram", "TikTok"]))
+}
+
+#Preview("Block screen") {
+    ShieldPreview(appName: "Instagram")
 }

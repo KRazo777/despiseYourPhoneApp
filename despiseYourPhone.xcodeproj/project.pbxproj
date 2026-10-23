@@ -248,6 +248,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				EEBACB583089CA7200039F72 /* ShieldConfigurationExtension */,
+				EEBACBA0308B000000039F72 /* Shared */,
 			);
 			name = ShieldConfigurationExtension;
 			productName = ShieldConfigurationExtension;
@@ -266,6 +267,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				EEBACB6A3089CA8D00039F72 /* ShieldActionExtension */,
+				EEBACBA0308B000000039F72 /* Shared */,
 			);
 			name = ShieldActionExtension;
 			productName = ShieldActionExtension;

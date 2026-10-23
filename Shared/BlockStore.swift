@@ -36,4 +36,36 @@ enum BlockStore {
     static func clearShield() {
         ManagedSettingsStore(named: .blocks).clearAllSettings()
     }
+
+    // MARK: - Whether blocking should be on
+
+    static var blockNow: Bool { AppGroup.defaults.bool(forKey: AppGroup.Key.blockNow) }
+
+    /// True when Block now is on, or the daily schedule is on and `date` falls inside its window.
+    static func shouldBlock(at date: Date = .now) -> Bool {
+        let defaults = AppGroup.defaults
+        return shouldBlock(
+            blockNow: defaults.bool(forKey: AppGroup.Key.blockNow),
+            scheduleOn: defaults.bool(forKey: AppGroup.Key.scheduleOn),
+            startMinutes: defaults.integer(forKey: AppGroup.Key.scheduleStart),
+            endMinutes: defaults.integer(forKey: AppGroup.Key.scheduleEnd),
+            at: date
+        )
+    }
+
+    static func shouldBlock(blockNow: Bool, scheduleOn: Bool, startMinutes: Int, endMinutes: Int, at date: Date) -> Bool {
+        if blockNow { return true }
+        guard scheduleOn, startMinutes != endMinutes else { return false }
+        let time = Calendar.current.dateComponents([.hour, .minute], from: date)
+        let minutes = (time.hour ?? 0) * 60 + (time.minute ?? 0)
+        // A window like 22:00-07:00 wraps past midnight.
+        return startMinutes < endMinutes
+            ? minutes >= startMinutes && minutes < endMinutes
+            : minutes >= startMinutes || minutes < endMinutes
+    }
+
+    /// Turns the shield on or off to match `shouldBlock()`.
+    static func refreshShield() {
+        shouldBlock() ? applyShield() : clearShield()
+    }
 }
