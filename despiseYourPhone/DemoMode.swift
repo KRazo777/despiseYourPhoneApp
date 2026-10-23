@@ -58,6 +58,8 @@ struct DemoAppPicker: View {
 struct ShieldPreview: View {
     let appName: String
     @Environment(\.dismiss) private var dismiss
+    /// Stands in for the time the real shield saves on the first "Let me in" tap.
+    @State private var requestedAt: Date?
 
     var body: some View {
         ZStack {
@@ -84,8 +86,21 @@ struct ShieldPreview: View {
                         .padding()
                         .background(.white, in: RoundedRectangle(cornerRadius: 14))
                 }
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    let stage = TempUnlock.stage(requestedAt: requestedAt, now: context.date)
+                    Button(stage.buttonTitle) { letMeIn(stage) }
+                        .foregroundStyle(Color(uiColor: .lightGray))
+                }
             }
             .padding(24)
+        }
+    }
+
+    private func letMeIn(_ stage: TempUnlock.Stage) {
+        switch stage {
+        case .idle: requestedAt = .now
+        case .waiting: break
+        case .ready: dismiss()
         }
     }
 }

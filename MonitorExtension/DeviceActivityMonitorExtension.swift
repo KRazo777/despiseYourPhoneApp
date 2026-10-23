@@ -11,9 +11,22 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
 
     override func intervalDidEnd(for activity: DeviceActivityName) {
         super.intervalDidEnd(for: activity)
-        // Leave the shield up if Block now is still on.
-        if activity == .dailySchedule, !BlockStore.blockNow {
-            BlockStore.clearShield()
+        switch activity {
+        case .dailySchedule:
+            // Leave the shield up if Block now is still on.
+            if !BlockStore.blockNow { BlockStore.clearShield() }
+        case .tempUnlock:
+            TempUnlock.end()
+        default:
+            break
+        }
+    }
+
+    /// For a "Let me in" unlock, the warning fires when the unlock minutes are up.
+    override func intervalWillEndWarning(for activity: DeviceActivityName) {
+        super.intervalWillEndWarning(for: activity)
+        if activity == .tempUnlock {
+            TempUnlock.end()
         }
     }
 }

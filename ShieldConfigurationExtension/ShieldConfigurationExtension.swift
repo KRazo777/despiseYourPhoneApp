@@ -28,7 +28,8 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
             title: .init(text: ShieldCopy.title(for: name), color: .white),
             subtitle: .init(text: ShieldCopy.subtitle, color: .lightGray),
             primaryButtonLabel: .init(text: ShieldCopy.closeButton, color: .black),
-            primaryButtonBackgroundColor: .white
+            primaryButtonBackgroundColor: .white,
+            secondaryButtonLabel: .init(text: TempUnlock.currentStage().buttonTitle, color: .lightGray)
         )
     }
 }
