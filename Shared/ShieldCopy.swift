@@ -14,12 +14,17 @@ enum ShieldCopy {
         if opensLeft == 0 {
             return "Blocked by \(group.name). You've used all your opens for today."
         }
+        if let until = group.strictUntil, group.isStrict(at: .now) {
+            return "Blocked by \(group.name). Strict mode is on until \(until.formatted(date: .omitted, time: .shortened))."
+        }
         return "Blocked by \(group.name). \(breath)"
     }
 
     /// The second button's text, or nil to hide the button.
     static func secondaryButton(for group: BlockGroup?, stage: TempUnlock.Stage, opensLeft: Int?) -> String? {
         guard let group, opensLeft != 0 else { return nil }
+        // Strict mode removes "Let me in", but a daily opens limit still applies.
+        if group.isStrict(at: .now) && group.opensPerDay == nil { return nil }
         switch stage {
         case .idle:
             if let opensLeft, let limit = group.opensPerDay {

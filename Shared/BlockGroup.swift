@@ -24,10 +24,18 @@ struct BlockGroup: Codable, Identifiable, Equatable {
     var unlockMinutes = 5
     /// How many times a day the block screen lets you in. nil means no limit.
     var opensPerDay: Int?
+    /// Until this time the group can't be turned off, edited, or deleted,
+    /// and the block screen has no "Let me in" (daily opens still work).
+    var strictUntil: Date?
 
     var hasApps: Bool {
         !selection.applicationTokens.isEmpty || !selection.categoryTokens.isEmpty
             || !selection.webDomainTokens.isEmpty || !demoApps.isEmpty
+    }
+
+    func isStrict(at date: Date) -> Bool {
+        guard isOn, let strictUntil else { return false }
+        return date < strictUntil
     }
 
     /// Whether the group's rules say it should block at `date`, ignoring any temporary unlock.

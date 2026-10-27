@@ -5,6 +5,7 @@ import DeviceActivity
 class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     override func intervalDidStart(for activity: DeviceActivityName) {
         super.intervalDidStart(for: activity)
+        GroupStore.updateAppRemovalLock()
         if let id = BlockGroup.id(from: activity, prefix: BlockGroup.schedulePrefix),
            let group = GroupStore.group(id: id),
            !TempUnlock.isUnlocked(id) {
@@ -14,6 +15,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
 
     override func intervalDidEnd(for activity: DeviceActivityName) {
         super.intervalDidEnd(for: activity)
+        GroupStore.updateAppRemovalLock()
         if let id = BlockGroup.id(from: activity, prefix: BlockGroup.schedulePrefix),
            let group = GroupStore.group(id: id) {
             GroupStore.clearShield(group)

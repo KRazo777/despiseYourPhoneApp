@@ -86,6 +86,14 @@ enum GroupStore {
             try updateSchedule(group)
             refresh(group)
         }
+        updateAppRemovalLock(groups)
+    }
+
+    /// While any group is in strict mode, ask iOS not to let this app be deleted,
+    /// since deleting it would remove every block.
+    static func updateAppRemovalLock(_ groups: [BlockGroup] = load(), now: Date = .now) {
+        let anyStrict = groups.contains { $0.isStrict(at: now) }
+        ManagedSettingsStore(named: .init("strict")).application.denyAppRemoval = anyStrict ? true : nil
     }
 
     /// iOS calls the monitor extension at the start and end of each scheduled window,

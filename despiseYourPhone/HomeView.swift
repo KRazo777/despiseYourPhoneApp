@@ -66,6 +66,10 @@ struct HomeView: View {
                     groups.append(saved)
                 }
             }
+            .task {
+                // Strict mode may have ended while the app was closed.
+                if !DemoMode.isOn { GroupStore.updateAppRemovalLock(groups) }
+            }
             .onChange(of: groups) { old, new in
                 let removed = old.filter { group in !new.contains { $0.id == group.id } }
                 sync(removed: removed)
