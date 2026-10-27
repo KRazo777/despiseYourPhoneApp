@@ -1,47 +1,38 @@
 import SwiftUI
 import FamilyControls
 
-/// Rows for the chosen apps, categories, and websites, with their real icons.
+/// Rows for a group's apps, categories, and websites, with their real icons.
 /// In demo mode it shows the sample apps instead.
 struct BlockedAppsList: View {
-    let selection: FamilyActivitySelection
-    let demoSelection: Set<String>
+    let group: BlockGroup
 
     var body: some View {
+        if !group.hasApps {
+            Text("No apps chosen yet")
+                .foregroundStyle(.secondary)
+        }
         if DemoMode.isOn {
-            let picked = DemoMode.apps.filter { demoSelection.contains($0.name) }
-            if picked.isEmpty {
-                emptyRow
-            }
-            ForEach(picked, id: \.name) { app in
+            ForEach(DemoMode.apps.filter { group.demoApps.contains($0.name) }, id: \.name) { app in
                 Label(app.name, systemImage: app.icon)
             }
         } else {
-            if selection.applicationTokens.isEmpty && selection.categoryTokens.isEmpty && selection.webDomainTokens.isEmpty {
-                emptyRow
-            }
-            ForEach(Array(selection.applicationTokens), id: \.self) { token in
+            ForEach(Array(group.selection.applicationTokens), id: \.self) { token in
                 Label(token)
             }
-            ForEach(Array(selection.categoryTokens), id: \.self) { token in
+            ForEach(Array(group.selection.categoryTokens), id: \.self) { token in
                 Label(token)
             }
-            ForEach(Array(selection.webDomainTokens), id: \.self) { token in
+            ForEach(Array(group.selection.webDomainTokens), id: \.self) { token in
                 Label(token)
             }
         }
-    }
-
-    private var emptyRow: some View {
-        Text("No apps chosen yet")
-            .foregroundStyle(.secondary)
     }
 }
 
 #Preview {
     Form {
-        Section("Blocked apps") {
-            BlockedAppsList(selection: FamilyActivitySelection(), demoSelection: ["Instagram", "TikTok", "Reddit"])
+        Section("Apps") {
+            BlockedAppsList(group: BlockGroup.samples[0])
         }
     }
 }

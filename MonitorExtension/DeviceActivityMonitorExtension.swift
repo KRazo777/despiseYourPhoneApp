@@ -1,32 +1,32 @@
 import DeviceActivity
 
-/// iOS runs this in the background at the start and end of each scheduled window.
+/// iOS runs this in the background when a group's schedule window starts or ends,
+/// and when a "Let me in" unlock runs out.
 class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     override func intervalDidStart(for activity: DeviceActivityName) {
         super.intervalDidStart(for: activity)
-        if activity == .dailySchedule {
-            BlockStore.applyShield()
+        if let id = BlockGroup.id(from: activity, prefix: BlockGroup.schedulePrefix),
+           let group = GroupStore.group(id: id),
+           !TempUnlock.isUnlocked(id) {
+            GroupStore.applyShield(group)
         }
     }
 
     override func intervalDidEnd(for activity: DeviceActivityName) {
         super.intervalDidEnd(for: activity)
-        switch activity {
-        case .dailySchedule:
-            // Leave the shield up if Block now is still on.
-            if !BlockStore.blockNow { BlockStore.clearShield() }
-        case .tempUnlock:
-            TempUnlock.end()
-        default:
-            break
+        if let id = BlockGroup.id(from: activity, prefix: BlockGroup.schedulePrefix),
+           let group = GroupStore.group(id: id) {
+            GroupStore.clearShield(group)
+        } else if let id = BlockGroup.id(from: activity, prefix: BlockGroup.unlockPrefix) {
+            TempUnlock.end(id)
         }
     }
 
-    /// For a "Let me in" unlock, the warning fires when the unlock minutes are up.
+    /// For an unlock, the warning fires when the unlock minutes are up.
     override func intervalWillEndWarning(for activity: DeviceActivityName) {
         super.intervalWillEndWarning(for: activity)
-        if activity == .tempUnlock {
-            TempUnlock.end()
+        if let id = BlockGroup.id(from: activity, prefix: BlockGroup.unlockPrefix) {
+            TempUnlock.end(id)
         }
     }
 }

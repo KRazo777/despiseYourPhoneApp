@@ -23,6 +23,14 @@ enum DemoMode {
     ]
 }
 
+extension BlockGroup {
+    /// Sample groups for previews.
+    static let samples: [BlockGroup] = [
+        BlockGroup(name: "Social", demoApps: ["Instagram", "TikTok", "Snapchat"]),
+        BlockGroup(name: "Bedtime", demoApps: ["YouTube", "Reddit"], usesSchedule: true),
+    ]
+}
+
 /// Stand-in for the system FamilyActivityPicker.
 struct DemoAppPicker: View {
     @Binding var selected: Set<String>
@@ -57,6 +65,7 @@ struct DemoAppPicker: View {
 /// Mirrors ShieldConfigurationExtension's block screen. Keep the two in sync.
 struct ShieldPreview: View {
     let appName: String
+    let group: BlockGroup
     @Environment(\.dismiss) private var dismiss
     /// Stands in for the time the real shield saves on the first "Let me in" tap.
     @State private var requestedAt: Date?
@@ -72,7 +81,7 @@ struct ShieldPreview: View {
                 Text(ShieldCopy.title(for: appName))
                     .font(.title2.bold())
                     .foregroundStyle(.white)
-                Text(ShieldCopy.subtitle)
+                Text(ShieldCopy.subtitle(for: group))
                     .foregroundStyle(Color(uiColor: .lightGray))
                     .multilineTextAlignment(.center)
                 Spacer()
@@ -88,8 +97,10 @@ struct ShieldPreview: View {
                 }
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     let stage = TempUnlock.stage(requestedAt: requestedAt, now: context.date)
-                    Button(stage.buttonTitle) { letMeIn(stage) }
-                        .foregroundStyle(Color(uiColor: .lightGray))
+                    if let title = ShieldCopy.secondaryButton(for: group, stage: stage) {
+                        Button(title) { letMeIn(stage) }
+                            .foregroundStyle(Color(uiColor: .lightGray))
+                    }
                 }
             }
             .padding(24)
@@ -110,5 +121,5 @@ struct ShieldPreview: View {
 }
 
 #Preview("Block screen") {
-    ShieldPreview(appName: "Instagram")
+    ShieldPreview(appName: "Instagram", group: BlockGroup.samples[0])
 }

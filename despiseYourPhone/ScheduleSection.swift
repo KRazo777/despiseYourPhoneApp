@@ -1,20 +1,27 @@
 import SwiftUI
 
-/// The daily schedule toggle and its From / Until times.
+/// "When to block": all day, or a daily window with From / Until times.
 struct ScheduleSection: View {
-    @Binding var isOn: Bool
-    @Binding var startMinutes: Int
-    @Binding var endMinutes: Int
+    @Binding var group: BlockGroup
 
     var body: some View {
         Section {
-            Toggle("Block on a schedule", isOn: $isOn)
-            DatePicker("From", selection: ClockTime.binding($startMinutes), displayedComponents: .hourAndMinute)
-            DatePicker("Until", selection: ClockTime.binding($endMinutes), displayedComponents: .hourAndMinute)
+            Picker("When", selection: $group.usesSchedule) {
+                Text("All day").tag(false)
+                Text("On a schedule").tag(true)
+            }
+            .pickerStyle(.segmented)
+
+            if group.usesSchedule {
+                DatePicker("From", selection: ClockTime.binding($group.startMinutes), displayedComponents: .hourAndMinute)
+                DatePicker("Until", selection: ClockTime.binding($group.endMinutes), displayedComponents: .hourAndMinute)
+            }
         } header: {
-            Text("Daily schedule")
+            Text("When to block")
         } footer: {
-            Text("Repeats every day, even when the app is closed. iOS needs the window to be at least 15 minutes.")
+            Text(group.usesSchedule
+                ? "Repeats every day, even when the app is closed. iOS needs the window to be at least 15 minutes."
+                : "Blocks all day, every day, until you turn the group off.")
         }
     }
 }
@@ -28,10 +35,6 @@ enum ClockTime {
     static func minutes(_ date: Date) -> Int {
         let time = Calendar.current.dateComponents([.hour, .minute], from: date)
         return (time.hour ?? 0) * 60 + (time.minute ?? 0)
-    }
-
-    static func components(_ minutes: Int) -> DateComponents {
-        DateComponents(hour: minutes / 60, minute: minutes % 60)
     }
 
     static func text(_ minutes: Int) -> String {
@@ -48,6 +51,6 @@ enum ClockTime {
 
 #Preview {
     Form {
-        ScheduleSection(isOn: .constant(true), startMinutes: .constant(22 * 60), endMinutes: .constant(7 * 60))
+        ScheduleSection(group: .constant(BlockGroup.samples[1]))
     }
 }

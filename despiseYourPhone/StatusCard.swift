@@ -1,62 +1,48 @@
 import SwiftUI
 
-/// Big card at the top of the home screen: is blocking on right now, and until when.
+/// Big card at the top of the home screen: is anything blocking right now, and which groups.
 struct StatusCard: View {
-    let blockNow: Bool
-    let scheduleOn: Bool
-    let startMinutes: Int
-    let endMinutes: Int
+    let groups: [BlockGroup]
 
     var body: some View {
         TimelineView(.everyMinute) { context in
-            let blocking = BlockStore.shouldBlock(
-                blockNow: blockNow,
-                scheduleOn: scheduleOn,
-                startMinutes: startMinutes,
-                endMinutes: endMinutes,
-                at: context.date
-            )
+            let blocking: [BlockGroup] = groups.filter { GroupStore.isBlocking($0, at: context.date) }
 
             VStack(alignment: .leading, spacing: 8) {
-                Image(systemName: blocking ? "lock.fill" : "lock.open")
+                Image(systemName: blocking.isEmpty ? "lock.open" : "lock.fill")
                     .font(.system(size: 32, weight: .semibold))
-                Text(blocking ? "Blocking is on" : "Blocking is off")
+                Text(blocking.isEmpty ? "Blocking is off" : "Blocking is on")
                     .font(.title.bold())
                 Text(detail(blocking: blocking))
                     .font(.subheadline)
                     .opacity(0.85)
             }
-            .foregroundStyle(blocking ? .white : .primary)
+            .foregroundStyle(blocking.isEmpty ? AnyShapeStyle(.primary) : AnyShapeStyle(.white))
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(20)
             .background(
-                blocking ? AnyShapeStyle(Color.indigo) : AnyShapeStyle(.background),
+                blocking.isEmpty ? AnyShapeStyle(.background) : AnyShapeStyle(Color.indigo),
                 in: RoundedRectangle(cornerRadius: 20)
             )
         }
     }
 
-    private func detail(blocking: Bool) -> String {
-        if blockNow {
-            return "Until you turn off Block now"
+    private func detail(blocking: [BlockGroup]) -> String {
+        if !blocking.isEmpty {
+            return blocking.map(\.name).formatted(.list(type: .and))
         }
-        if scheduleOn {
-            return blocking
-                ? "Until \(ClockTime.text(endMinutes))"
-                : "Next block at \(ClockTime.text(startMinutes))"
-        }
-        return "Turn on Block now or set a schedule"
+        return groups.isEmpty ? "Make a group of apps to get started" : "No groups are blocking right now"
     }
 }
 
 #Preview("On") {
-    StatusCard(blockNow: true, scheduleOn: false, startMinutes: 22 * 60, endMinutes: 7 * 60)
+    StatusCard(groups: BlockGroup.samples)
         .padding()
         .background(Color(.systemGroupedBackground))
 }
 
 #Preview("Off") {
-    StatusCard(blockNow: false, scheduleOn: false, startMinutes: 22 * 60, endMinutes: 7 * 60)
+    StatusCard(groups: [])
         .padding()
         .background(Color(.systemGroupedBackground))
 }
