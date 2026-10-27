@@ -4,6 +4,7 @@ import DeviceActivity
 /// "Let me in": the block screen's second button.
 /// The first tap starts a short wait. A tap after the wait lifts the group's shield for
 /// `unlockMinutes`, then the monitor extension puts it back.
+/// Groups with an opens limit use up one open each time, and the count resets at midnight.
 enum TempUnlock {
     static let waitSeconds = 10
 
@@ -14,14 +15,6 @@ enum TempUnlock {
 
     enum Stage {
         case idle, waiting, ready
-
-        func buttonTitle(unlockMinutes: Int) -> String {
-            switch self {
-            case .idle: "Let me in"
-            case .waiting: "Wait \(waitSeconds) seconds, then tap again"
-            case .ready: "Unlock for \(unlockMinutes) minutes"
-            }
-        }
     }
 
     static func stage(requestedAt: Date?, now: Date = .now) -> Stage {
@@ -45,8 +38,35 @@ enum TempUnlock {
         date(forKey: unlockedUntilKey(groupID))
     }
 
+    // MARK: - Opens per day
+
+    /// Opens left today, or nil when the group has no limit.
+    static func opensLeft(_ group: BlockGroup, now: Date = .now) -> Int? {
+        guard let limit = group.opensPerDay else { return nil }
+        return max(0, limit - opensUsed(group.id, now: now))
+    }
+
+    static func opensUsed(_ groupID: UUID, now: Date = .now) -> Int {
+        let defaults = AppGroup.defaults
+        guard defaults.double(forKey: opensDayKey(groupID)) == today(now) else { return 0 }
+        return defaults.integer(forKey: opensUsedKey(groupID))
+    }
+
+    private static func useOpen(_ groupID: UUID, now: Date) {
+        let used = opensUsed(groupID, now: now)
+        AppGroup.defaults.set(today(now), forKey: opensDayKey(groupID))
+        AppGroup.defaults.set(used + 1, forKey: opensUsedKey(groupID))
+    }
+
+    private static func today(_ now: Date) -> Double {
+        Calendar.current.startOfDay(for: now).timeIntervalSince1970
+    }
+
+    // MARK: - Tapping the button
+
     /// Handles a tap on "Let me in". Returns true if the shield was lifted.
     static func letMeIn(_ group: BlockGroup, now: Date = .now) -> Bool {
+        if opensLeft(group, now: now) == 0 { return false }
         switch currentStage(for: group.id, now: now) {
         case .idle:
             AppGroup.defaults.set(now.timeIntervalSince1970, forKey: requestedAtKey(group.id))
@@ -55,7 +75,9 @@ enum TempUnlock {
             return false
         case .ready:
             AppGroup.defaults.removeObject(forKey: requestedAtKey(group.id))
-            return start(group, now: now)
+            guard start(group, now: now) else { return false }
+            if group.opensPerDay != nil { useOpen(group.id, now: now) }
+            return true
         }
     }
 
@@ -71,6 +93,8 @@ enum TempUnlock {
     static func reset(_ groupID: UUID) {
         AppGroup.defaults.removeObject(forKey: requestedAtKey(groupID))
         AppGroup.defaults.removeObject(forKey: unlockedUntilKey(groupID))
+        AppGroup.defaults.removeObject(forKey: opensDayKey(groupID))
+        AppGroup.defaults.removeObject(forKey: opensUsedKey(groupID))
     }
 
     private static func start(_ group: BlockGroup, now: Date) -> Bool {
@@ -101,6 +125,8 @@ enum TempUnlock {
 
     private static func requestedAtKey(_ id: UUID) -> String { "unlockRequestedAt-\(id.uuidString)" }
     private static func unlockedUntilKey(_ id: UUID) -> String { "unlockedUntil-\(id.uuidString)" }
+    private static func opensDayKey(_ id: UUID) -> String { "opensDay-\(id.uuidString)" }
+    private static func opensUsedKey(_ id: UUID) -> String { "opensUsed-\(id.uuidString)" }
 
     private static func date(forKey key: String) -> Date? {
         let seconds = AppGroup.defaults.double(forKey: key)

@@ -31,9 +31,15 @@ struct GroupEditorView: View {
                 ScheduleSection(group: $group)
 
                 Section {
-                    Stepper("Let me in: \(group.unlockMinutes) min", value: $group.unlockMinutes, in: 1...60)
+                    Toggle("Limit opens per day", isOn: limitsOpens)
+                    if let opens = group.opensPerDay {
+                        Stepper("\(opens) \(opens == 1 ? "open" : "opens") a day", value: opensPerDay, in: 0...20)
+                    }
+                    Stepper("Each open lasts \(group.unlockMinutes) min", value: $group.unlockMinutes, in: 1...60)
+                } header: {
+                    Text("Opens")
                 } footer: {
-                    Text("How long the block screen's Let me in button unlocks this group for.")
+                    Text("An open lets you into this group's apps for a few minutes, after a \(TempUnlock.waitSeconds)-second wait on the block screen. The count resets at midnight.")
                 }
             }
             .navigationTitle(isNew ? "New group" : "Edit group")
@@ -58,6 +64,20 @@ struct GroupEditorView: View {
         }
     }
 
+    private var limitsOpens: Binding<Bool> {
+        Binding(
+            get: { group.opensPerDay != nil },
+            set: { group.opensPerDay = $0 ? 3 : nil }
+        )
+    }
+
+    private var opensPerDay: Binding<Int> {
+        Binding(
+            get: { group.opensPerDay ?? 0 },
+            set: { group.opensPerDay = $0 }
+        )
+    }
+
     /// The demo picker works with a set; the group keeps the apps in picker order.
     private var demoApps: Binding<Set<String>> {
         Binding(
@@ -68,5 +88,5 @@ struct GroupEditorView: View {
 }
 
 #Preview {
-    GroupEditorView(group: BlockGroup.samples[1], isNew: false) { _ in }
+    GroupEditorView(group: BlockGroup.samples[0], isNew: false) { _ in }
 }

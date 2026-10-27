@@ -8,15 +8,28 @@ enum ShieldCopy {
         "\(name ?? "This app") is blocked"
     }
 
-    static func subtitle(for group: BlockGroup?) -> String {
+    static func subtitle(for group: BlockGroup?, opensLeft: Int?) -> String {
         let breath = "Take a breath. Is this what you meant to do?"
         guard let group else { return breath }
+        if opensLeft == 0 {
+            return "Blocked by \(group.name). You've used all your opens for today."
+        }
         return "Blocked by \(group.name). \(breath)"
     }
 
     /// The second button's text, or nil to hide the button.
-    static func secondaryButton(for group: BlockGroup?, stage: TempUnlock.Stage) -> String? {
-        guard let group else { return nil }
-        return stage.buttonTitle(unlockMinutes: group.unlockMinutes)
+    static func secondaryButton(for group: BlockGroup?, stage: TempUnlock.Stage, opensLeft: Int?) -> String? {
+        guard let group, opensLeft != 0 else { return nil }
+        switch stage {
+        case .idle:
+            if let opensLeft, let limit = group.opensPerDay {
+                return "Use an open (\(opensLeft) of \(limit) left today)"
+            }
+            return "Let me in"
+        case .waiting:
+            return "Wait \(TempUnlock.waitSeconds) seconds, then tap again"
+        case .ready:
+            return "Open for \(group.unlockMinutes) minutes"
+        }
     }
 }

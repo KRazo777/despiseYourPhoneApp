@@ -36,7 +36,11 @@ struct GroupDetailView: View {
                 LabeledContent("When", value: group.usesSchedule
                     ? "\(ClockTime.text(group.startMinutes)) – \(ClockTime.text(group.endMinutes))"
                     : "All day")
-                LabeledContent("Let me in", value: "\(group.unlockMinutes) min at a time")
+                LabeledContent("Opens", value: group.opensPerDay.map { "\($0) a day, \(group.unlockMinutes) min each" }
+                    ?? "No limit, \(group.unlockMinutes) min each")
+                if let left = TempUnlock.opensLeft(group) {
+                    LabeledContent("Opens left today", value: "\(left)")
+                }
             }
 
             if DemoMode.isOn {

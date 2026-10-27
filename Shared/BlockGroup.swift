@@ -20,8 +20,10 @@ struct BlockGroup: Codable, Identifiable, Equatable {
     /// Minutes after midnight.
     var startMinutes = 22 * 60
     var endMinutes = 7 * 60
-    /// How long "Let me in" unlocks the group for.
+    /// How long each open (or "Let me in") unlocks the group for.
     var unlockMinutes = 5
+    /// How many times a day the block screen lets you in. nil means no limit.
+    var opensPerDay: Int?
 
     var hasApps: Bool {
         !selection.applicationTokens.isEmpty || !selection.categoryTokens.isEmpty

@@ -32,12 +32,12 @@ enum GroupStatus {
         if let until = TempUnlock.unlockedUntil(group.id), date < until {
             return "Unlocked until \(until.formatted(date: .omitted, time: .shortened))"
         }
-        if !group.usesSchedule {
-            return "Blocking all day"
+        guard group.isScheduledToBlock(at: date) else {
+            return "Starts at \(ClockTime.text(group.startMinutes))"
         }
-        return group.isScheduledToBlock(at: date)
-            ? "Blocking until \(ClockTime.text(group.endMinutes))"
-            : "Starts at \(ClockTime.text(group.startMinutes))"
+        let blocking = group.usesSchedule ? "Blocking until \(ClockTime.text(group.endMinutes))" : "Blocking all day"
+        guard let left = TempUnlock.opensLeft(group, now: date) else { return blocking }
+        return "\(blocking) · \(left) \(left == 1 ? "open" : "opens") left"
     }
 }
 

@@ -22,15 +22,16 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
 
     private func shield(named name: String?, group: BlockGroup?) -> ShieldConfiguration {
         let stage = group.map { TempUnlock.currentStage(for: $0.id) } ?? .idle
+        let opensLeft = group.flatMap { TempUnlock.opensLeft($0) }
         return ShieldConfiguration(
             backgroundBlurStyle: .systemUltraThinMaterialDark,
             backgroundColor: .black,
             icon: UIImage(systemName: "hourglass"),
             title: .init(text: ShieldCopy.title(for: name), color: .white),
-            subtitle: .init(text: ShieldCopy.subtitle(for: group), color: .lightGray),
+            subtitle: .init(text: ShieldCopy.subtitle(for: group, opensLeft: opensLeft), color: .lightGray),
             primaryButtonLabel: .init(text: ShieldCopy.closeButton, color: .black),
             primaryButtonBackgroundColor: .white,
-            secondaryButtonLabel: ShieldCopy.secondaryButton(for: group, stage: stage).map { .init(text: $0, color: .lightGray) }
+            secondaryButtonLabel: ShieldCopy.secondaryButton(for: group, stage: stage, opensLeft: opensLeft).map { .init(text: $0, color: .lightGray) }
         )
     }
 }

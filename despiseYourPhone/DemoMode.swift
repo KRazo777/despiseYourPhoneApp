@@ -26,7 +26,7 @@ enum DemoMode {
 extension BlockGroup {
     /// Sample groups for previews.
     static let samples: [BlockGroup] = [
-        BlockGroup(name: "Social", demoApps: ["Instagram", "TikTok", "Snapchat"]),
+        BlockGroup(name: "Social", demoApps: ["Instagram", "TikTok", "Snapchat"], opensPerDay: 3),
         BlockGroup(name: "Bedtime", demoApps: ["YouTube", "Reddit"], usesSchedule: true),
     ]
 }
@@ -67,8 +67,13 @@ struct ShieldPreview: View {
     let appName: String
     let group: BlockGroup
     @Environment(\.dismiss) private var dismiss
-    /// Stands in for the time the real shield saves on the first "Let me in" tap.
+    /// Stand in for what the real shield saves when its second button is tapped.
     @State private var requestedAt: Date?
+    @State private var opensUsed = 0
+
+    private var opensLeft: Int? {
+        group.opensPerDay.map { max(0, $0 - opensUsed) }
+    }
 
     var body: some View {
         ZStack {
@@ -81,7 +86,7 @@ struct ShieldPreview: View {
                 Text(ShieldCopy.title(for: appName))
                     .font(.title2.bold())
                     .foregroundStyle(.white)
-                Text(ShieldCopy.subtitle(for: group))
+                Text(ShieldCopy.subtitle(for: group, opensLeft: opensLeft))
                     .foregroundStyle(Color(uiColor: .lightGray))
                     .multilineTextAlignment(.center)
                 Spacer()
@@ -97,7 +102,7 @@ struct ShieldPreview: View {
                 }
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     let stage = TempUnlock.stage(requestedAt: requestedAt, now: context.date)
-                    if let title = ShieldCopy.secondaryButton(for: group, stage: stage) {
+                    if let title = ShieldCopy.secondaryButton(for: group, stage: stage, opensLeft: opensLeft) {
                         Button(title) { letMeIn(stage) }
                             .foregroundStyle(Color(uiColor: .lightGray))
                     }
@@ -111,7 +116,10 @@ struct ShieldPreview: View {
         switch stage {
         case .idle: requestedAt = .now
         case .waiting: break
-        case .ready: dismiss()
+        case .ready:
+            if group.opensPerDay != nil { opensUsed += 1 }
+            requestedAt = nil
+            dismiss()
         }
     }
 }
