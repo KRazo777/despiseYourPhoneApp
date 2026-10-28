@@ -20,13 +20,18 @@ struct BlockGroup: Codable, Identifiable, Equatable {
     /// Minutes after midnight.
     var startMinutes = 22 * 60
     var endMinutes = 7 * 60
-    /// How long each open (or "Let me in") unlocks the group for.
+    /// How long the block screen's Unlock button unlocks the group for.
     var unlockMinutes = 5
+    /// Seconds between the first tap on Unlock and the tap that works.
+    /// Groups saved before this setting existed have nil and keep the old 10-second wait.
+    var openDelaySeconds: Int? = 0
     /// How many times a day the block screen lets you in. nil means no limit.
     var opensPerDay: Int?
     /// Until this time the group can't be turned off, edited, or deleted,
-    /// and the block screen has no "Let me in" (daily opens still work).
+    /// and the block screen has no Unlock button (daily opens still work).
     var strictUntil: Date?
+
+    var openDelay: Int { openDelaySeconds ?? 10 }
 
     var hasApps: Bool {
         !selection.applicationTokens.isEmpty || !selection.categoryTokens.isEmpty

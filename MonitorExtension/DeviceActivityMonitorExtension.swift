@@ -1,7 +1,7 @@
 import DeviceActivity
 
 /// iOS runs this in the background when a group's schedule window starts or ends,
-/// and when a "Let me in" unlock runs out.
+/// and when an unlock runs out.
 class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     override func intervalDidStart(for activity: DeviceActivityName) {
         super.intervalDidStart(for: activity)

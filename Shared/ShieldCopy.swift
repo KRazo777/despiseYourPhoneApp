@@ -8,33 +8,26 @@ enum ShieldCopy {
         "\(name ?? "This app") is blocked"
     }
 
-    static func subtitle(for group: BlockGroup?, opensLeft: Int?) -> String {
-        let breath = "Take a breath. Is this what you meant to do?"
-        guard let group else { return breath }
-        if opensLeft == 0 {
-            return "Blocked by \(group.name). You've used all your opens for today."
-        }
-        if let until = group.strictUntil, group.isStrict(at: .now) {
-            return "Blocked by \(group.name). Strict mode is on until \(until.formatted(date: .omitted, time: .shortened))."
-        }
-        return "Blocked by \(group.name). \(breath)"
+    /// Only groups with an opens limit get a subtitle: a row of squares, one per open
+    /// (filled for opens left, empty for opens used), and the count.
+    static func subtitle(for group: BlockGroup?, opensLeft: Int?) -> String? {
+        guard let limit = group?.opensPerDay, let opensLeft else { return nil }
+        let squares = String(repeating: "■ ", count: opensLeft) + String(repeating: "□ ", count: limit - opensLeft)
+        return "\(squares.trimmingCharacters(in: .whitespaces))\n\(opensLeft)/\(limit) opens left"
     }
 
-    /// The second button's text, or nil to hide the button.
-    static func secondaryButton(for group: BlockGroup?, stage: TempUnlock.Stage, opensLeft: Int?) -> String? {
+    /// The Unlock button's text, or nil to hide the button.
+    static func unlockButton(for group: BlockGroup?, stage: TempUnlock.Stage, opensLeft: Int?) -> String? {
         guard let group, opensLeft != 0 else { return nil }
-        // Strict mode removes "Let me in", but a daily opens limit still applies.
+        // Strict mode removes Unlock, but a daily opens limit still applies.
         if group.isStrict(at: .now) && group.opensPerDay == nil { return nil }
         switch stage {
         case .idle:
-            if let opensLeft, let limit = group.opensPerDay {
-                return "Use an open (\(opensLeft) of \(limit) left today)"
-            }
-            return "Let me in"
+            return group.openDelay > 0 ? "Unlock (\(group.openDelay)s)" : "Unlock"
         case .waiting:
-            return "Wait \(TempUnlock.waitSeconds) seconds, then tap again"
+            return "Wait \(group.openDelay)s, then tap again"
         case .ready:
-            return "Open for \(group.unlockMinutes) minutes"
+            return "Tap again to unlock"
         }
     }
 }

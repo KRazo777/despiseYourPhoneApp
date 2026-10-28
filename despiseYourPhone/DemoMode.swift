@@ -26,7 +26,7 @@ enum DemoMode {
 extension BlockGroup {
     /// Sample groups for previews.
     static let samples: [BlockGroup] = [
-        BlockGroup(name: "Social", demoApps: ["Instagram", "TikTok", "Snapchat"], opensPerDay: 3),
+        BlockGroup(name: "Social", demoApps: ["Instagram", "TikTok", "Snapchat"], openDelaySeconds: 5, opensPerDay: 10),
         BlockGroup(name: "Bedtime", demoApps: ["YouTube", "Reddit"], usesSchedule: true),
     ]
 }
@@ -69,7 +69,13 @@ struct ShieldPreview: View {
     @Environment(\.dismiss) private var dismiss
     /// Stand in for what the real shield saves when its second button is tapped.
     @State private var requestedAt: Date?
-    @State private var opensUsed = 0
+    @State private var opensUsed: Int
+
+    init(appName: String, group: BlockGroup) {
+        self.appName = appName
+        self.group = group
+        _opensUsed = State(initialValue: TempUnlock.opensUsed(group.id))
+    }
 
     private var opensLeft: Int? {
         group.opensPerDay.map { max(0, $0 - opensUsed) }
@@ -86,25 +92,27 @@ struct ShieldPreview: View {
                 Text(ShieldCopy.title(for: appName))
                     .font(.title2.bold())
                     .foregroundStyle(.white)
-                Text(ShieldCopy.subtitle(for: group, opensLeft: opensLeft))
-                    .foregroundStyle(Color(uiColor: .lightGray))
-                    .multilineTextAlignment(.center)
+                if let subtitle = ShieldCopy.subtitle(for: group, opensLeft: opensLeft) {
+                    Text(subtitle)
+                        .foregroundStyle(Color(uiColor: .lightGray))
+                        .multilineTextAlignment(.center)
+                }
                 Spacer()
                 Button {
                     dismiss()
                 } label: {
                     Text(ShieldCopy.closeButton)
                         .font(.headline)
-                        .foregroundStyle(.black)
+                        .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(.white, in: RoundedRectangle(cornerRadius: 14))
+                        .background(Color(uiColor: .systemIndigo), in: RoundedRectangle(cornerRadius: 14))
                 }
                 TimelineView(.periodic(from: .now, by: 1)) { context in
-                    let stage = TempUnlock.stage(requestedAt: requestedAt, now: context.date)
-                    if let title = ShieldCopy.secondaryButton(for: group, stage: stage, opensLeft: opensLeft) {
-                        Button(title) { letMeIn(stage) }
-                            .foregroundStyle(Color(uiColor: .lightGray))
+                    let stage = TempUnlock.stage(requestedAt: requestedAt, delay: group.openDelay, now: context.date)
+                    if let title = ShieldCopy.unlockButton(for: group, stage: stage, opensLeft: opensLeft) {
+                        Button(title) { unlockTapped(stage) }
+                            .foregroundStyle(Color(white: 0.4))
                     }
                 }
             }
@@ -112,11 +120,11 @@ struct ShieldPreview: View {
         }
     }
 
-    private func letMeIn(_ stage: TempUnlock.Stage) {
+    private func unlockTapped(_ stage: TempUnlock.Stage) {
         switch stage {
-        case .idle: requestedAt = .now
+        case .idle where group.openDelay > 0: requestedAt = .now
         case .waiting: break
-        case .ready:
+        case .idle, .ready:
             if group.opensPerDay != nil { opensUsed += 1 }
             requestedAt = nil
             dismiss()

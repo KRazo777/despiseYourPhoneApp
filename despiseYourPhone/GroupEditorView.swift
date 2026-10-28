@@ -35,11 +35,20 @@ struct GroupEditorView: View {
                     if let opens = group.opensPerDay {
                         Stepper("\(opens) \(opens == 1 ? "open" : "opens") a day", value: opensPerDay, in: 0...20)
                     }
-                    Stepper("Each open lasts \(group.unlockMinutes) min", value: $group.unlockMinutes, in: 1...60)
+                    Picker("Open duration", selection: $group.unlockMinutes) {
+                        ForEach(durationChoices, id: \.self) { minutes in
+                            Text("\(minutes) min").tag(minutes)
+                        }
+                    }
+                    Picker("Open delay", selection: openDelay) {
+                        ForEach(Self.delayChoices, id: \.self) { seconds in
+                            Text(seconds == 0 ? "None" : "\(seconds) sec").tag(seconds)
+                        }
+                    }
                 } header: {
                     Text("Opens")
                 } footer: {
-                    Text("An open lets you into this group's apps for a few minutes, after a \(TempUnlock.waitSeconds)-second wait on the block screen. The count resets at midnight.")
+                    Text("Unlock on the block screen opens this group's apps for the open duration. With an open delay, you tap Unlock, wait, then tap again. Opens reset at midnight.")
                 }
             }
             .navigationTitle(isNew ? "New group" : "Edit group")
@@ -62,6 +71,21 @@ struct GroupEditorView: View {
                 DemoAppPicker(selected: demoApps)
             }
         }
+    }
+
+    static let delayChoices = [0, 5, 10, 15, 30]
+    private static let durationOptions = [1, 2, 5, 10, 15, 20, 30, 45, 60]
+
+    /// The standard durations, plus the group's own if it was set to something else before.
+    private var durationChoices: [Int] {
+        Set(Self.durationOptions + [group.unlockMinutes]).sorted()
+    }
+
+    private var openDelay: Binding<Int> {
+        Binding(
+            get: { group.openDelay },
+            set: { group.openDelaySeconds = $0 }
+        )
     }
 
     private var limitsOpens: Binding<Bool> {

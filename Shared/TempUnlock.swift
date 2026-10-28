@@ -1,13 +1,12 @@
 import Foundation
 import DeviceActivity
 
-/// "Let me in": the block screen's second button.
-/// The first tap starts a short wait. A tap after the wait lifts the group's shield for
-/// `unlockMinutes`, then the monitor extension puts it back.
+/// "Unlock": the block screen's second button.
+/// With an open delay, the first tap starts the wait and a tap after it unlocks; without one,
+/// a single tap unlocks. Unlocking lifts the group's shield for `unlockMinutes`,
+/// then the monitor extension puts it back.
 /// Groups with an opens limit use up one open each time, and the count resets at midnight.
 enum TempUnlock {
-    static let waitSeconds = 10
-
     /// A first tap older than this no longer counts, so the button doesn't stay armed forever.
     private static let requestExpirySeconds: TimeInterval = 120
     /// DeviceActivity won't monitor an interval shorter than 15 minutes.
@@ -17,16 +16,16 @@ enum TempUnlock {
         case idle, waiting, ready
     }
 
-    static func stage(requestedAt: Date?, now: Date = .now) -> Stage {
+    static func stage(requestedAt: Date?, delay: Int, now: Date = .now) -> Stage {
         guard let requestedAt else { return .idle }
         let elapsed = now.timeIntervalSince(requestedAt)
         if elapsed < 0 || elapsed > requestExpirySeconds { return .idle }
-        return elapsed < TimeInterval(waitSeconds) ? .waiting : .ready
+        return elapsed < TimeInterval(delay) ? .waiting : .ready
     }
 
     /// The stage of a group's real shield, from the time saved by the last tap.
-    static func currentStage(for groupID: UUID, now: Date = .now) -> Stage {
-        stage(requestedAt: date(forKey: requestedAtKey(groupID)), now: now)
+    static func currentStage(for group: BlockGroup, now: Date = .now) -> Stage {
+        stage(requestedAt: date(forKey: requestedAtKey(group.id)), delay: group.openDelay, now: now)
     }
 
     static func isUnlocked(_ groupID: UUID, at date: Date = .now) -> Bool {
@@ -64,10 +63,12 @@ enum TempUnlock {
 
     // MARK: - Tapping the button
 
-    /// Handles a tap on "Let me in". Returns true if the shield was lifted.
-    static func letMeIn(_ group: BlockGroup, now: Date = .now) -> Bool {
+    /// Handles a tap on Unlock. Returns true if the shield was lifted.
+    static func unlockTapped(_ group: BlockGroup, now: Date = .now) -> Bool {
         if opensLeft(group, now: now) == 0 { return false }
-        switch currentStage(for: group.id, now: now) {
+        switch currentStage(for: group, now: now) {
+        case .idle where group.openDelay == 0:
+            return unlock(group, now: now)
         case .idle:
             AppGroup.defaults.set(now.timeIntervalSince1970, forKey: requestedAtKey(group.id))
             return false
@@ -75,10 +76,14 @@ enum TempUnlock {
             return false
         case .ready:
             AppGroup.defaults.removeObject(forKey: requestedAtKey(group.id))
-            guard start(group, now: now) else { return false }
-            if group.opensPerDay != nil { useOpen(group.id, now: now) }
-            return true
+            return unlock(group, now: now)
         }
+    }
+
+    private static func unlock(_ group: BlockGroup, now: Date) -> Bool {
+        guard start(group, now: now) else { return false }
+        if group.opensPerDay != nil { useOpen(group.id, now: now) }
+        return true
     }
 
     /// Called by the monitor extension when the unlock time is up.

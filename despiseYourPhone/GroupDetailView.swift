@@ -55,8 +55,9 @@ struct GroupDetailView: View {
                 LabeledContent("When", value: group.usesSchedule
                     ? "\(ClockTime.text(group.startMinutes)) – \(ClockTime.text(group.endMinutes))"
                     : "All day")
-                LabeledContent("Opens", value: group.opensPerDay.map { "\($0) a day, \(group.unlockMinutes) min each" }
-                    ?? "No limit, \(group.unlockMinutes) min each")
+                LabeledContent("Opens", value: group.opensPerDay.map { "\($0) a day" } ?? "No limit")
+                LabeledContent("Open duration", value: "\(group.unlockMinutes) min")
+                LabeledContent("Open delay", value: group.openDelay == 0 ? "None" : "\(group.openDelay) sec")
                 if let left = TempUnlock.opensLeft(group) {
                     LabeledContent("Opens left today", value: "\(left)")
                 }
@@ -82,7 +83,7 @@ struct GroupDetailView: View {
             } header: {
                 Text("Strict mode")
             } footer: {
-                Text("No turning off, editing, or deleting this group, and no Let me in button, until time runs out. Daily opens still work.")
+                Text("No turning off, editing, or deleting this group, and no Unlock button, until time runs out. Daily opens still work.")
             }
 
             if DemoMode.isOn {

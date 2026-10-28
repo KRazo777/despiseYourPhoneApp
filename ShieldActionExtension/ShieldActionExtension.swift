@@ -1,8 +1,7 @@
 import ManagedSettings
 
 /// Handles taps on the block screen's buttons.
-/// Close leaves the app. The second button unlocks the app's group for a few minutes
-/// after a short wait (see TempUnlock).
+/// Close leaves the app. Unlock lifts the app's group for a few minutes (see TempUnlock).
 class ShieldActionExtension: ShieldActionDelegate {
     override func handle(action: ShieldAction, for application: ApplicationToken, completionHandler: @escaping (ShieldActionResponse) -> Void) {
         completionHandler(response(to: action, group: GroupStore.group(application: application)))
@@ -21,7 +20,7 @@ class ShieldActionExtension: ShieldActionDelegate {
         case .secondaryButtonPressed:
             guard let group else { return .close }
             // .defer redraws the shield so the button shows the next step.
-            return TempUnlock.letMeIn(group) ? .none : .defer
+            return TempUnlock.unlockTapped(group) ? .none : .defer
         default:
             return .close
         }
