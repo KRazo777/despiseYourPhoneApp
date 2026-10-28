@@ -20,7 +20,7 @@ struct GroupEditorView: View {
         NavigationStack {
             Form {
                 Section("Name") {
-                    TextField("Social media", text: $group.name)
+                    TextField("App Group Name", text: $group.name)
                 }
 
                 Section("Apps") {
@@ -32,8 +32,12 @@ struct GroupEditorView: View {
 
                 Section {
                     Toggle("Limit opens per day", isOn: limitsOpens)
-                    if let opens = group.opensPerDay {
-                        Stepper("\(opens) \(opens == 1 ? "open" : "opens") a day", value: opensPerDay, in: 0...20)
+                    if group.opensPerDay != nil {
+                        Picker("Opens a day", selection: opensPerDay) {
+                            ForEach(Self.opensChoices, id: \.self) { opens in
+                                Text("\(opens)").tag(opens)
+                            }
+                        }
                     }
                     Picker("Open duration", selection: $group.unlockMinutes) {
                         ForEach(durationChoices, id: \.self) { minutes in
@@ -48,7 +52,7 @@ struct GroupEditorView: View {
                 } header: {
                     Text("Opens")
                 } footer: {
-                    Text("Each app in the group gets its own opens. Unlock on the block screen opens just that app for the open duration. With an open delay, the app opens that many seconds after you tap Unlock. Opens reset at midnight.")
+                    Text("With an open delay, the app opens that many seconds after you tap Unlock. Opens reset at midnight.")
                 }
             }
             .navigationTitle(isNew ? "New group" : "Edit group")
@@ -74,6 +78,8 @@ struct GroupEditorView: View {
     }
 
     static let delayChoices = [0, 5, 10, 15, 30]
+    /// 0 means the block screen never offers Unlock for this group.
+    static let opensChoices = Array(0...20)
     private static let durationOptions = [1, 2, 5, 10, 15, 20, 30, 45, 60]
 
     /// The standard durations, plus the group's own if it was set to something else before.
