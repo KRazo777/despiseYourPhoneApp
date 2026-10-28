@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// One group's status, apps, and rules, with buttons to turn it off, edit, or delete it.
-/// While the group is on, those go through TurnOffGate. In strict mode they're disabled.
+/// One group's status, apps, and rules, with buttons to edit, turn off, or delete it.
+/// While the group is on, turning it off or deleting it goes through TurnOffGate.
+/// In strict mode all three are disabled.
 struct GroupDetailView: View {
     @Binding var groups: [BlockGroup]
     let id: UUID
@@ -15,13 +16,12 @@ struct GroupDetailView: View {
     @Environment(\.dismiss) private var dismiss
 
     enum ProtectedAction: String, Identifiable {
-        case turnOff, edit, delete
+        case turnOff, delete
         var id: String { rawValue }
 
         func gateTitle(for name: String) -> String {
             switch self {
             case .turnOff: "Turn off \(name)?"
-            case .edit: "Edit \(name)?"
             case .delete: "Delete \(name)?"
             }
         }
@@ -55,12 +55,14 @@ struct GroupDetailView: View {
                 LabeledContent("When", value: group.usesSchedule
                     ? "\(ClockTime.text(group.startMinutes)) – \(ClockTime.text(group.endMinutes))"
                     : "All day")
-                LabeledContent("Opens", value: group.opensPerDay.map { "\($0) a day" } ?? "No limit")
+                LabeledContent("Opens", value: group.opensPerDay.map { "\($0) / Day" } ?? "No limit")
                 LabeledContent("Open duration", value: "\(group.unlockMinutes) min")
                 LabeledContent("Open delay", value: group.openDelay == 0 ? "None" : "\(group.openDelay) sec")
-                if let left = TempUnlock.opensLeft(group) {
-                    LabeledContent("Opens left today", value: "\(left)")
-                }
+            }
+
+            Section {
+                Button("Edit group") { editing = group }
+                    .disabled(strict)
             }
 
             Section {
@@ -94,17 +96,16 @@ struct GroupDetailView: View {
 
             Section {
                 if group.isOn {
-                    Button("Turn off") { protect(.turnOff, group: group) }
+                    Button("Turn off blocking") { protect(.turnOff, group: group) }
                 } else {
-                    Button("Turn on") { groups[index].isOn = true }
+                    Button("Turn on blocking") { groups[index].isOn = true }
                 }
-                Button("Edit group") { protect(.edit, group: group) }
                 Button("Delete group", role: .destructive) { protect(.delete, group: group) }
             } footer: {
                 if strict {
                     Text("Strict mode is on, so this group can't be changed right now.")
                 } else if group.isOn {
-                    Text("Turning off, editing, or deleting this group takes a \(TurnOffGate.waitSeconds)-second wait and a typed promise.")
+                    Text("Turning off or deleting this group takes a \(TurnOffGate.waitSeconds)-second wait and a typed promise.")
                 }
             }
             .disabled(strict)
@@ -145,7 +146,7 @@ struct GroupDetailView: View {
         }
     }
 
-    /// Runs after the gate sheet closes, so the editor sheet can open cleanly.
+    /// Runs after the gate sheet closes, so the screen can dismiss cleanly.
     private func runConfirmedAction() {
         guard let action = confirmedAction else { return }
         confirmedAction = nil
@@ -157,8 +158,6 @@ struct GroupDetailView: View {
         switch action {
         case .turnOff:
             groups[index].isOn = false
-        case .edit:
-            editing = groups[index]
         case .delete:
             dismiss()
             groups.remove(at: index)

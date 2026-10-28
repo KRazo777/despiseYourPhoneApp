@@ -2,31 +2,12 @@ import Foundation
 import DeviceActivity
 
 /// "Unlock": the block screen's second button.
-/// With an open delay, the first tap starts the wait and a tap after it unlocks; without one,
-/// a single tap unlocks. Unlocking lifts the group's shield for `unlockMinutes`,
-/// then the monitor extension puts it back.
+/// One tap unlocks, after the group's open delay if it has one. Unlocking lifts the group's
+/// shield for `unlockMinutes`, then the monitor extension puts it back.
 /// Groups with an opens limit use up one open each time, and the count resets at midnight.
 enum TempUnlock {
-    /// A first tap older than this no longer counts, so the button doesn't stay armed forever.
-    private static let requestExpirySeconds: TimeInterval = 120
     /// DeviceActivity won't monitor an interval shorter than 15 minutes.
     private static let minimumIntervalMinutes = 15
-
-    enum Stage {
-        case idle, waiting, ready
-    }
-
-    static func stage(requestedAt: Date?, delay: Int, now: Date = .now) -> Stage {
-        guard let requestedAt else { return .idle }
-        let elapsed = now.timeIntervalSince(requestedAt)
-        if elapsed < 0 || elapsed > requestExpirySeconds { return .idle }
-        return elapsed < TimeInterval(delay) ? .waiting : .ready
-    }
-
-    /// The stage of a group's real shield, from the time saved by the last tap.
-    static func currentStage(for group: BlockGroup, now: Date = .now) -> Stage {
-        stage(requestedAt: date(forKey: requestedAtKey(group.id)), delay: group.openDelay, now: now)
-    }
 
     static func isUnlocked(_ groupID: UUID, at date: Date = .now) -> Bool {
         guard let until = unlockedUntil(groupID) else { return false }
@@ -63,25 +44,28 @@ enum TempUnlock {
 
     // MARK: - Tapping the button
 
-    /// Handles a tap on Unlock. Returns true if the shield was lifted.
-    static func unlockTapped(_ group: BlockGroup, now: Date = .now) -> Bool {
+    /// Whether the block screen should offer Unlock at all.
+    static func canUnlock(_ group: BlockGroup, now: Date = .now) -> Bool {
         if opensLeft(group, now: now) == 0 { return false }
-        switch currentStage(for: group, now: now) {
-        case .idle where group.openDelay == 0:
-            return unlock(group, now: now)
-        case .idle:
-            AppGroup.defaults.set(now.timeIntervalSince1970, forKey: requestedAtKey(group.id))
-            return false
-        case .waiting:
-            return false
-        case .ready:
-            AppGroup.defaults.removeObject(forKey: requestedAtKey(group.id))
-            return unlock(group, now: now)
-        }
+        // Strict mode removes Unlock, but a daily opens limit still applies.
+        return !(group.isStrict(at: now) && group.opensPerDay == nil)
     }
 
-    private static func unlock(_ group: BlockGroup, now: Date) -> Bool {
-        guard start(group, now: now) else { return false }
+    /// True while an earlier tap is still waiting out the open delay, so extra taps are ignored.
+    static func isWaiting(_ group: BlockGroup, now: Date = .now) -> Bool {
+        guard let requestedAt = date(forKey: requestedAtKey(group.id)) else { return false }
+        let elapsed = now.timeIntervalSince(requestedAt)
+        return elapsed >= 0 && elapsed < TimeInterval(group.openDelay + 5)
+    }
+
+    static func beginWaiting(_ group: BlockGroup, now: Date = .now) {
+        AppGroup.defaults.set(now.timeIntervalSince1970, forKey: requestedAtKey(group.id))
+    }
+
+    /// Lifts the group's shield and uses up an open. Returns true if it worked.
+    static func unlock(_ group: BlockGroup, now: Date = .now) -> Bool {
+        AppGroup.defaults.removeObject(forKey: requestedAtKey(group.id))
+        guard canUnlock(group, now: now), start(group, now: now) else { return false }
         if group.opensPerDay != nil { useOpen(group.id, now: now) }
         return true
     }

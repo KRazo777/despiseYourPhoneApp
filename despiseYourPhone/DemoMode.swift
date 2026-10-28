@@ -67,8 +67,8 @@ struct ShieldPreview: View {
     let appName: String
     let group: BlockGroup
     @Environment(\.dismiss) private var dismiss
-    /// Stand in for what the real shield saves when its second button is tapped.
-    @State private var requestedAt: Date?
+    /// Stand in for what the real shield saves when Unlock is tapped.
+    @State private var waiting = false
     @State private var opensUsed: Int
 
     init(appName: String, group: BlockGroup) {
@@ -108,25 +108,21 @@ struct ShieldPreview: View {
                         .padding()
                         .background(Color(uiColor: .systemIndigo), in: RoundedRectangle(cornerRadius: 14))
                 }
-                TimelineView(.periodic(from: .now, by: 1)) { context in
-                    let stage = TempUnlock.stage(requestedAt: requestedAt, delay: group.openDelay, now: context.date)
-                    if let title = ShieldCopy.unlockButton(for: group, stage: stage, opensLeft: opensLeft) {
-                        Button(title) { unlockTapped(stage) }
-                            .foregroundStyle(Color(white: 0.4))
-                    }
+                if let title = ShieldCopy.unlockButton(for: group), opensLeft != 0 {
+                    Button(title) { unlockTapped() }
+                        .foregroundStyle(Color(white: 0.4))
                 }
             }
             .padding(24)
         }
     }
 
-    private func unlockTapped(_ stage: TempUnlock.Stage) {
-        switch stage {
-        case .idle where group.openDelay > 0: requestedAt = .now
-        case .waiting: break
-        case .idle, .ready:
+    /// Like the real shield: one tap, then the app opens once the open delay is over.
+    private func unlockTapped() {
+        guard !waiting else { return }
+        waiting = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(group.openDelay)) {
             if group.opensPerDay != nil { opensUsed += 1 }
-            requestedAt = nil
             dismiss()
         }
     }

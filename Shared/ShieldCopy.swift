@@ -17,17 +17,8 @@ enum ShieldCopy {
     }
 
     /// The Unlock button's text, or nil to hide the button.
-    static func unlockButton(for group: BlockGroup?, stage: TempUnlock.Stage, opensLeft: Int?) -> String? {
-        guard let group, opensLeft != 0 else { return nil }
-        // Strict mode removes Unlock, but a daily opens limit still applies.
-        if group.isStrict(at: .now) && group.opensPerDay == nil { return nil }
-        switch stage {
-        case .idle:
-            return group.openDelay > 0 ? "Unlock (\(group.openDelay)s)" : "Unlock"
-        case .waiting:
-            return "Wait \(group.openDelay)s, then tap again"
-        case .ready:
-            return "Tap again to unlock"
-        }
+    static func unlockButton(for group: BlockGroup?) -> String? {
+        guard let group, TempUnlock.canUnlock(group) else { return nil }
+        return group.openDelay > 0 ? "Unlock (\(group.openDelay)s)" : "Unlock"
     }
 }

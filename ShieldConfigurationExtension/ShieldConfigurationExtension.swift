@@ -21,7 +21,6 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
     }
 
     private func shield(named name: String?, group: BlockGroup?) -> ShieldConfiguration {
-        let stage = group.map { TempUnlock.currentStage(for: $0) } ?? .idle
         let opensLeft = group.flatMap { TempUnlock.opensLeft($0) }
         return ShieldConfiguration(
             backgroundBlurStyle: .systemUltraThinMaterialDark,
@@ -32,7 +31,7 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
             // Close should be the easy, inviting choice; Unlock should look like an afterthought.
             primaryButtonLabel: .init(text: ShieldCopy.closeButton, color: .white),
             primaryButtonBackgroundColor: .systemIndigo,
-            secondaryButtonLabel: ShieldCopy.unlockButton(for: group, stage: stage, opensLeft: opensLeft).map { .init(text: $0, color: UIColor(white: 0.4, alpha: 1)) }
+            secondaryButtonLabel: ShieldCopy.unlockButton(for: group).map { .init(text: $0, color: UIColor(white: 0.4, alpha: 1)) }
         )
     }
 }
