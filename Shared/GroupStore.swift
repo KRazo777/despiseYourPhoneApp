@@ -46,7 +46,7 @@ enum GroupStore {
 
     /// True when the group's rules say block and it isn't temporarily unlocked.
     static func isBlocking(_ group: BlockGroup, at date: Date = .now) -> Bool {
-        group.isScheduledToBlock(at: date) && !TempUnlock.isUnlocked(group.id, at: date)
+        group.isScheduledToBlock(at: date) && !TempUnlock.isGroupUnlocked(group.id, at: date)
     }
 
     /// Turns the group's shield on or off to match `isBlocking`.
@@ -54,17 +54,21 @@ enum GroupStore {
         isBlocking(group) ? applyShield(group) : clearShield(group)
     }
 
+    /// Shields the group's apps and sites, leaving out any that are unlocked right now.
     static func applyShield(_ group: BlockGroup) {
         let selection = group.selection
+        let unlocked = TempUnlock.unlockedTokens(group.id)
+        let apps = selection.applicationTokens.subtracting(unlocked.apps)
+        let webDomains = selection.webDomainTokens.subtracting(unlocked.webDomains)
         let store = ManagedSettingsStore(named: group.storeName)
-        store.shield.applications = selection.applicationTokens.isEmpty ? nil : selection.applicationTokens
+        store.shield.applications = apps.isEmpty ? nil : apps
         store.shield.applicationCategories = selection.categoryTokens.isEmpty
             ? nil
-            : .specific(selection.categoryTokens)
-        store.shield.webDomains = selection.webDomainTokens.isEmpty ? nil : selection.webDomainTokens
+            : .specific(selection.categoryTokens, except: unlocked.apps)
+        store.shield.webDomains = webDomains.isEmpty ? nil : webDomains
         store.shield.webDomainCategories = selection.categoryTokens.isEmpty
             ? nil
-            : .specific(selection.categoryTokens)
+            : .specific(selection.categoryTokens, except: unlocked.webDomains)
     }
 
     static func clearShield(_ group: BlockGroup) {

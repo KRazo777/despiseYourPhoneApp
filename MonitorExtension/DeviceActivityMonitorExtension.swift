@@ -8,7 +8,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         GroupStore.updateAppRemovalLock()
         if let id = BlockGroup.id(from: activity, prefix: BlockGroup.schedulePrefix),
            let group = GroupStore.group(id: id),
-           !TempUnlock.isUnlocked(id) {
+           !TempUnlock.isGroupUnlocked(id) {
             GroupStore.applyShield(group)
         }
     }
@@ -20,7 +20,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
            let group = GroupStore.group(id: id) {
             GroupStore.clearShield(group)
         } else if let id = BlockGroup.id(from: activity, prefix: BlockGroup.unlockPrefix) {
-            TempUnlock.end(id)
+            TempUnlock.expire(id)
         }
     }
 
@@ -28,7 +28,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     override func intervalWillEndWarning(for activity: DeviceActivityName) {
         super.intervalWillEndWarning(for: activity)
         if let id = BlockGroup.id(from: activity, prefix: BlockGroup.unlockPrefix) {
-            TempUnlock.end(id)
+            TempUnlock.expire(id)
         }
     }
 }

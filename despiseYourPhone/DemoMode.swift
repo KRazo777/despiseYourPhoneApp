@@ -69,13 +69,8 @@ struct ShieldPreview: View {
     @Environment(\.dismiss) private var dismiss
     /// Stand in for what the real shield saves when Unlock is tapped.
     @State private var waiting = false
-    @State private var opensUsed: Int
-
-    init(appName: String, group: BlockGroup) {
-        self.appName = appName
-        self.group = group
-        _opensUsed = State(initialValue: TempUnlock.opensUsed(group.id))
-    }
+    /// Each app has its own count; the preview starts this app at none used.
+    @State private var opensUsed = 0
 
     private var opensLeft: Int? {
         group.opensPerDay.map { max(0, $0 - opensUsed) }
@@ -108,7 +103,7 @@ struct ShieldPreview: View {
                         .padding()
                         .background(Color(uiColor: .systemIndigo), in: RoundedRectangle(cornerRadius: 14))
                 }
-                if let title = ShieldCopy.unlockButton(for: group), opensLeft != 0 {
+                if let title = ShieldCopy.unlockButton(for: group, opensLeft: opensLeft) {
                     Button(title) { unlockTapped() }
                         .foregroundStyle(Color(white: 0.4))
                 }

@@ -1,41 +1,68 @@
 import Foundation
+import CryptoKit
 import DeviceActivity
+import ManagedSettings
+
+/// What a block screen is shielding: one app, one website, or (when iOS only tells us
+/// the category) the whole group.
+enum ShieldTarget {
+    case app(ApplicationToken)
+    case web(WebDomainToken)
+    case group
+
+    /// A stable name for the target, used in saved counts and unlocks.
+    var key: String {
+        switch self {
+        case .app(let token): "app-" + Self.hash(token)
+        case .web(let token): "web-" + Self.hash(token)
+        case .group: "group"
+        }
+    }
+
+    fileprivate var tokenData: Data? {
+        switch self {
+        case .app(let token): try? JSONEncoder().encode(token)
+        case .web(let token): try? JSONEncoder().encode(token)
+        case .group: nil
+        }
+    }
+
+    private static func hash<T: Encodable>(_ token: T) -> String {
+        let data = (try? JSONEncoder().encode(token)) ?? Data()
+        return SHA256.hash(data: data).prefix(12).map { String(format: "%02x", $0) }.joined()
+    }
+}
 
 /// "Unlock": the block screen's second button.
-/// One tap unlocks, after the group's open delay if it has one. Unlocking lifts the group's
-/// shield for `unlockMinutes`, then the monitor extension puts it back.
-/// Groups with an opens limit use up one open each time, and the count resets at midnight.
+/// One tap unlocks just that app (or site), after the group's open delay if it has one.
+/// Each app has its own daily opens count. The rest of the group stays blocked, and the
+/// monitor extension blocks the app again when its open duration is up.
 enum TempUnlock {
     /// DeviceActivity won't monitor an interval shorter than 15 minutes.
     private static let minimumIntervalMinutes = 15
-
-    static func isUnlocked(_ groupID: UUID, at date: Date = .now) -> Bool {
-        guard let until = unlockedUntil(groupID) else { return false }
-        return date < until
-    }
-
-    static func unlockedUntil(_ groupID: UUID) -> Date? {
-        date(forKey: unlockedUntilKey(groupID))
-    }
+    /// The re-block warning only has minute precision, so it can fire a little early.
+    private static let expiryTolerance: TimeInterval = 60
 
     // MARK: - Opens per day
 
-    /// Opens left today, or nil when the group has no limit.
-    static func opensLeft(_ group: BlockGroup, now: Date = .now) -> Int? {
+    /// Opens left today for this app, or nil when the group has no limit.
+    static func opensLeft(_ group: BlockGroup, _ target: ShieldTarget, now: Date = .now) -> Int? {
         guard let limit = group.opensPerDay else { return nil }
-        return max(0, limit - opensUsed(group.id, now: now))
+        return max(0, limit - (opensUsedToday(group.id, now: now)[target.key] ?? 0))
     }
 
-    static func opensUsed(_ groupID: UUID, now: Date = .now) -> Int {
+    /// Every target's opens used today. The counts start over on a new day.
+    private static func opensUsedToday(_ groupID: UUID, now: Date) -> [String: Int] {
         let defaults = AppGroup.defaults
-        guard defaults.double(forKey: opensDayKey(groupID)) == today(now) else { return 0 }
-        return defaults.integer(forKey: opensUsedKey(groupID))
+        guard defaults.double(forKey: opensDayKey(groupID)) == today(now) else { return [:] }
+        return defaults.dictionary(forKey: opensKey(groupID)) as? [String: Int] ?? [:]
     }
 
-    private static func useOpen(_ groupID: UUID, now: Date) {
-        let used = opensUsed(groupID, now: now)
+    private static func useOpen(_ groupID: UUID, _ target: ShieldTarget, now: Date) {
+        var used = opensUsedToday(groupID, now: now)
+        used[target.key, default: 0] += 1
         AppGroup.defaults.set(today(now), forKey: opensDayKey(groupID))
-        AppGroup.defaults.set(used + 1, forKey: opensUsedKey(groupID))
+        AppGroup.defaults.set(used, forKey: opensKey(groupID))
     }
 
     private static func today(_ now: Date) -> Double {
@@ -45,51 +72,104 @@ enum TempUnlock {
     // MARK: - Tapping the button
 
     /// Whether the block screen should offer Unlock at all.
-    static func canUnlock(_ group: BlockGroup, now: Date = .now) -> Bool {
-        if opensLeft(group, now: now) == 0 { return false }
+    static func canUnlock(_ group: BlockGroup, _ target: ShieldTarget, now: Date = .now) -> Bool {
+        if opensLeft(group, target, now: now) == 0 { return false }
         // Strict mode removes Unlock, but a daily opens limit still applies.
         return !(group.isStrict(at: now) && group.opensPerDay == nil)
     }
 
     /// True while an earlier tap is still waiting out the open delay, so extra taps are ignored.
-    static func isWaiting(_ group: BlockGroup, now: Date = .now) -> Bool {
-        guard let requestedAt = date(forKey: requestedAtKey(group.id)) else { return false }
-        let elapsed = now.timeIntervalSince(requestedAt)
+    static func isWaiting(_ group: BlockGroup, _ target: ShieldTarget, now: Date = .now) -> Bool {
+        let seconds = AppGroup.defaults.double(forKey: requestedAtKey(group.id, target))
+        guard seconds > 0 else { return false }
+        let elapsed = now.timeIntervalSince1970 - seconds
         return elapsed >= 0 && elapsed < TimeInterval(group.openDelay + 5)
     }
 
-    static func beginWaiting(_ group: BlockGroup, now: Date = .now) {
-        AppGroup.defaults.set(now.timeIntervalSince1970, forKey: requestedAtKey(group.id))
+    static func beginWaiting(_ group: BlockGroup, _ target: ShieldTarget, now: Date = .now) {
+        AppGroup.defaults.set(now.timeIntervalSince1970, forKey: requestedAtKey(group.id, target))
     }
 
-    /// Lifts the group's shield and uses up an open. Returns true if it worked.
-    static func unlock(_ group: BlockGroup, now: Date = .now) -> Bool {
-        AppGroup.defaults.removeObject(forKey: requestedAtKey(group.id))
-        guard canUnlock(group, now: now), start(group, now: now) else { return false }
-        if group.opensPerDay != nil { useOpen(group.id, now: now) }
+    /// Lets this app through for the group's open duration and uses up one of its opens.
+    /// Returns true if it worked.
+    static func unlock(_ group: BlockGroup, _ target: ShieldTarget, now: Date = .now) -> Bool {
+        AppGroup.defaults.removeObject(forKey: requestedAtKey(group.id, target))
+        guard canUnlock(group, target, now: now) else { return false }
+
+        var unlocks = activeUnlocks(group.id, now: now)
+        unlocks[target.key] = now.addingTimeInterval(TimeInterval(group.unlockMinutes * 60))
+        var tokens = AppGroup.defaults.dictionary(forKey: tokensKey(group.id)) as? [String: Data] ?? [:]
+        tokens[target.key] = target.tokenData
+        guard scheduleRelock(group, unlocks: unlocks, now: now) else {
+            // Without a monitor nothing would re-block, so keep the shield up.
+            return false
+        }
+        saveUnlocks(group.id, unlocks)
+        AppGroup.defaults.set(tokens, forKey: tokensKey(group.id))
+        if group.opensPerDay != nil { useOpen(group.id, target, now: now) }
+        GroupStore.refresh(group)
         return true
     }
 
-    /// Called by the monitor extension when the unlock time is up.
-    static func end(_ groupID: UUID) {
-        AppGroup.defaults.removeObject(forKey: unlockedUntilKey(groupID))
+    // MARK: - Unlocked apps
+
+    /// Unlocks that haven't run out yet, by target key.
+    static func activeUnlocks(_ groupID: UUID, now: Date = .now) -> [String: Date] {
+        let saved = AppGroup.defaults.dictionary(forKey: unlocksKey(groupID)) as? [String: Double] ?? [:]
+        return saved
+            .mapValues { Date(timeIntervalSince1970: $0) }
+            .filter { $0.value > now }
+    }
+
+    /// True when the whole group is unlocked (an unlock that couldn't name one app).
+    static func isGroupUnlocked(_ groupID: UUID, at date: Date = .now) -> Bool {
+        activeUnlocks(groupID, now: date)[ShieldTarget.group.key] != nil
+    }
+
+    /// Unlocked apps and websites, so the shield can leave them out.
+    static func unlockedTokens(_ groupID: UUID, now: Date = .now) -> (apps: Set<ApplicationToken>, webDomains: Set<WebDomainToken>) {
+        let keys = Set(activeUnlocks(groupID, now: now).keys)
+        let tokens = AppGroup.defaults.dictionary(forKey: tokensKey(groupID)) as? [String: Data] ?? [:]
+        var apps = Set<ApplicationToken>()
+        var webDomains = Set<WebDomainToken>()
+        for (key, data) in tokens where keys.contains(key) {
+            if key.hasPrefix("app-"), let token = try? JSONDecoder().decode(ApplicationToken.self, from: data) {
+                apps.insert(token)
+            } else if key.hasPrefix("web-"), let token = try? JSONDecoder().decode(WebDomainToken.self, from: data) {
+                webDomains.insert(token)
+            }
+        }
+        return (apps, webDomains)
+    }
+
+    /// Called by the monitor extension when the earliest unlock is up: blocks the expired
+    /// apps again and schedules the next re-block, if any apps are still unlocked.
+    static func expire(_ groupID: UUID, now: Date = .now) {
+        let remaining = activeUnlocks(groupID, now: now.addingTimeInterval(expiryTolerance))
+        saveUnlocks(groupID, remaining)
         guard let group = GroupStore.group(id: groupID) else { return }
-        DeviceActivityCenter().stopMonitoring([group.unlockActivity])
+        _ = scheduleRelock(group, unlocks: remaining, now: now)
         GroupStore.refresh(group)
     }
 
-    /// Forgets a deleted group's unlock state.
+    /// Forgets a deleted group's opens and unlocks.
     static func reset(_ groupID: UUID) {
-        AppGroup.defaults.removeObject(forKey: requestedAtKey(groupID))
-        AppGroup.defaults.removeObject(forKey: unlockedUntilKey(groupID))
-        AppGroup.defaults.removeObject(forKey: opensDayKey(groupID))
-        AppGroup.defaults.removeObject(forKey: opensUsedKey(groupID))
+        let defaults = AppGroup.defaults
+        for key in defaults.dictionaryRepresentation().keys where key.contains(groupID.uuidString) {
+            defaults.removeObject(forKey: key)
+        }
     }
 
-    private static func start(_ group: BlockGroup, now: Date) -> Bool {
-        // Monitor at least 15 minutes and re-block at the warning, `unlockMinutes` in.
-        let intervalMinutes = max(minimumIntervalMinutes, group.unlockMinutes)
-        let warningMinutes = intervalMinutes - group.unlockMinutes
+    /// One DeviceActivity per group re-blocks at the earliest unlock's end.
+    /// It runs at least 15 minutes, so the warning marks the actual re-block time.
+    private static func scheduleRelock(_ group: BlockGroup, unlocks: [String: Date], now: Date) -> Bool {
+        let center = DeviceActivityCenter()
+        center.stopMonitoring([group.unlockActivity])
+        guard let earliest = unlocks.values.min() else { return true }
+
+        let minutesLeft = max(1, Int((earliest.timeIntervalSince(now) / 60).rounded(.up)))
+        let intervalMinutes = max(minimumIntervalMinutes, minutesLeft)
+        let warningMinutes = intervalMinutes - minutesLeft
         let calendar = Calendar.current
         let parts: Set<Calendar.Component> = [.year, .month, .day, .hour, .minute, .second]
         let schedule = DeviceActivitySchedule(
@@ -98,27 +178,21 @@ enum TempUnlock {
             repeats: false,
             warningTime: warningMinutes > 0 ? DateComponents(minute: warningMinutes) : nil
         )
-        let center = DeviceActivityCenter()
-        center.stopMonitoring([group.unlockActivity])
         do {
             try center.startMonitoring(group.unlockActivity, during: schedule)
+            return true
         } catch {
-            // Without a monitor nothing would re-block, so keep the shield up.
             return false
         }
-        let until = now.addingTimeInterval(TimeInterval(group.unlockMinutes * 60))
-        AppGroup.defaults.set(until.timeIntervalSince1970, forKey: unlockedUntilKey(group.id))
-        GroupStore.clearShield(group)
-        return true
     }
 
-    private static func requestedAtKey(_ id: UUID) -> String { "unlockRequestedAt-\(id.uuidString)" }
-    private static func unlockedUntilKey(_ id: UUID) -> String { "unlockedUntil-\(id.uuidString)" }
+    private static func saveUnlocks(_ groupID: UUID, _ unlocks: [String: Date]) {
+        AppGroup.defaults.set(unlocks.mapValues(\.timeIntervalSince1970), forKey: unlocksKey(groupID))
+    }
+
+    private static func requestedAtKey(_ id: UUID, _ target: ShieldTarget) -> String { "unlockRequestedAt-\(id.uuidString)-\(target.key)" }
+    private static func unlocksKey(_ id: UUID) -> String { "unlocks-\(id.uuidString)" }
+    private static func tokensKey(_ id: UUID) -> String { "unlockTokens-\(id.uuidString)" }
     private static func opensDayKey(_ id: UUID) -> String { "opensDay-\(id.uuidString)" }
-    private static func opensUsedKey(_ id: UUID) -> String { "opensUsed-\(id.uuidString)" }
-
-    private static func date(forKey key: String) -> Date? {
-        let seconds = AppGroup.defaults.double(forKey: key)
-        return seconds > 0 ? Date(timeIntervalSince1970: seconds) : nil
-    }
+    private static func opensKey(_ id: UUID) -> String { "appOpens-\(id.uuidString)" }
 }

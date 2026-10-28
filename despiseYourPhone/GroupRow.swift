@@ -29,15 +29,16 @@ struct GroupRow: View {
 enum GroupStatus {
     static func text(for group: BlockGroup, at date: Date) -> String {
         guard group.isOn else { return "Off" }
-        if let until = TempUnlock.unlockedUntil(group.id), date < until {
+        if let until = TempUnlock.activeUnlocks(group.id, now: date)[ShieldTarget.group.key] {
             return "Unlocked until \(until.formatted(date: .omitted, time: .shortened))"
         }
         guard group.isScheduledToBlock(at: date) else {
             return "Starts at \(ClockTime.text(group.startMinutes))"
         }
         var parts = [group.usesSchedule ? "Blocking until \(ClockTime.text(group.endMinutes))" : "Blocking all day"]
-        if let left = TempUnlock.opensLeft(group, now: date) {
-            parts.append("\(left) \(left == 1 ? "open" : "opens") left")
+        let unlockedApps = TempUnlock.activeUnlocks(group.id, now: date).count
+        if unlockedApps > 0 {
+            parts.append("\(unlockedApps) unlocked")
         }
         if group.isStrict(at: date) {
             parts.append("Strict")

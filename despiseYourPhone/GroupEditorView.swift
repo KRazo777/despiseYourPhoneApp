@@ -48,7 +48,7 @@ struct GroupEditorView: View {
                 } header: {
                     Text("Opens")
                 } footer: {
-                    Text("Unlock on the block screen opens this group's apps for the open duration. With an open delay, the app opens that many seconds after you tap Unlock. Opens reset at midnight.")
+                    Text("Each app in the group gets its own opens. Unlock on the block screen opens just that app for the open duration. With an open delay, the app opens that many seconds after you tap Unlock. Opens reset at midnight.")
                 }
             }
             .navigationTitle(isNew ? "New group" : "Edit group")
