@@ -27,15 +27,17 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
     private func shield(named name: String?, target: ShieldTarget, group: BlockGroup?) -> ShieldConfiguration {
         let opensLeft = group.flatMap { TempUnlock.opensLeft($0, target) }
         return ShieldConfiguration(
-            backgroundBlurStyle: .systemUltraThinMaterialDark,
-            backgroundColor: .black,
+            backgroundBlurStyle: .dark,
+            backgroundColor: UIColor(white: ShieldCopy.backgroundWhite, alpha: 1),
             icon: UIImage(systemName: "hourglass"),
             title: .init(text: ShieldCopy.title(for: name), color: .white),
             subtitle: ShieldCopy.subtitle(for: group, opensLeft: opensLeft).map { .init(text: $0, color: .lightGray) },
             // Close should be the easy, inviting choice; Unlock should look like an afterthought.
-            primaryButtonLabel: .init(text: ShieldCopy.closeButton, color: .white),
-            primaryButtonBackgroundColor: .systemIndigo,
-            secondaryButtonLabel: ShieldCopy.unlockButton(for: group, opensLeft: opensLeft).map { .init(text: $0, color: UIColor(white: 0.4, alpha: 1)) }
+            primaryButtonLabel: .init(text: ShieldCopy.closeButton, color: .black),
+            primaryButtonBackgroundColor: .white,
+            secondaryButtonLabel: ShieldCopy.unlockButton(for: group, opensLeft: opensLeft).map {
+                .init(text: $0, color: UIColor(white: ShieldCopy.unlockWhite, alpha: 1))
+            }
         )
     }
 }

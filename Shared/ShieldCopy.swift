@@ -4,6 +4,10 @@ import Foundation
 enum ShieldCopy {
     static let closeButton = "Close"
 
+    // Close is the brightest thing on a near-black screen; Unlock sits just above the background.
+    static let backgroundWhite = 0.04
+    static let unlockWhite = 0.38
+
     static func title(for name: String?) -> String {
         "\(name ?? "This app") is blocked"
     }

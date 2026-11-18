@@ -78,7 +78,7 @@ struct ShieldPreview: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            Color(white: ShieldCopy.backgroundWhite).ignoresSafeArea()
             VStack(spacing: 16) {
                 Spacer()
                 Image(systemName: "hourglass")
@@ -98,14 +98,14 @@ struct ShieldPreview: View {
                 } label: {
                     Text(ShieldCopy.closeButton)
                         .font(.headline)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.black)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color(uiColor: .systemIndigo), in: RoundedRectangle(cornerRadius: 14))
+                        .background(.white, in: RoundedRectangle(cornerRadius: 14))
                 }
                 if let title = ShieldCopy.unlockButton(for: group, opensLeft: opensLeft) {
                     Button(title) { unlockTapped() }
-                        .foregroundStyle(Color(white: 0.4))
+                        .foregroundStyle(Color(white: ShieldCopy.unlockWhite))
                 }
             }
             .padding(24)
