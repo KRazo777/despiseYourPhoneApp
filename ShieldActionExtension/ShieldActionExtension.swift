@@ -19,7 +19,7 @@ class ShieldActionExtension: ShieldActionDelegate {
     }
 
     private func respond(to action: ShieldAction, target: ShieldTarget, group: BlockGroup?, completionHandler: @escaping (ShieldActionResponse) -> Void) {
-        guard action == .secondaryButtonPressed, let group else {
+        guard isUnlockRequest(action), let group else {
             completionHandler(.close)
             return
         }
@@ -42,5 +42,14 @@ class ShieldActionExtension: ShieldActionDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(group.openDelay)) {
             completionHandler(TempUnlock.unlock(group, target) ? .none : .defer)
         }
+    }
+
+    /// From iOS 26.4, Unlock opens a menu and only "Yes, unlock" (the first item) counts;
+    /// "Never mind" falls through to Close. Earlier versions unlock on the button itself.
+    private func isUnlockRequest(_ action: ShieldAction) -> Bool {
+        if #available(iOS 26.4, *) {
+            return action == .firstSecondarySubmenuItemPressed
+        }
+        return action == .secondaryButtonPressed
     }
 }

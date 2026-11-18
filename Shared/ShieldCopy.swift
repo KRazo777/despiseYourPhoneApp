@@ -20,6 +20,11 @@ enum ShieldCopy {
         return "\(squares.trimmingCharacters(in: .whitespaces))\n\(opensLeft)/\(limit) opens left"
     }
 
+    /// Tapping Unlock opens this menu first (iOS 26.4 and later), in this order.
+    static let confirmUnlock = "Yes, unlock"
+    static let cancelUnlock = "Never mind"
+    static let unlockMenu = [confirmUnlock, cancelUnlock]
+
     /// The Unlock button's text, or nil to hide the button.
     static func unlockButton(for group: BlockGroup?, opensLeft: Int?) -> String? {
         guard let group, opensLeft != 0 else { return nil }

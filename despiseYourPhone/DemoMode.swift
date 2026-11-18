@@ -104,8 +104,11 @@ struct ShieldPreview: View {
                         .background(.white, in: RoundedRectangle(cornerRadius: 14))
                 }
                 if let title = ShieldCopy.unlockButton(for: group, opensLeft: opensLeft) {
-                    Button(title) { unlockTapped() }
-                        .foregroundStyle(Color(white: ShieldCopy.unlockWhite))
+                    Menu(title) {
+                        Button(ShieldCopy.confirmUnlock) { unlockTapped() }
+                        Button(ShieldCopy.cancelUnlock) { dismiss() }
+                    }
+                    .foregroundStyle(Color(white: ShieldCopy.unlockWhite))
                 }
             }
             .padding(24)

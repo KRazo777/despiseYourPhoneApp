@@ -26,18 +26,38 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
 
     private func shield(named name: String?, target: ShieldTarget, group: BlockGroup?) -> ShieldConfiguration {
         let opensLeft = group.flatMap { TempUnlock.opensLeft($0, target) }
+        let unlockLabel = ShieldCopy.unlockButton(for: group, opensLeft: opensLeft).map {
+            ShieldConfiguration.Label(text: $0, color: UIColor(white: ShieldCopy.unlockWhite, alpha: 1))
+        }
+        guard #available(iOS 26.4, *) else {
+            return shield(named: name, opensLeft: opensLeft, group: group, unlockLabel: unlockLabel)
+        }
+        // Close is the bright, inviting choice; Unlock is dim and opens an
+        // "Are you sure?" menu instead of unlocking straight away.
         return ShieldConfiguration(
             backgroundBlurStyle: .dark,
             backgroundColor: UIColor(white: ShieldCopy.backgroundWhite, alpha: 1),
             icon: UIImage(systemName: "hourglass"),
             title: .init(text: ShieldCopy.title(for: name), color: .white),
             subtitle: ShieldCopy.subtitle(for: group, opensLeft: opensLeft).map { .init(text: $0, color: .lightGray) },
-            // Close should be the easy, inviting choice; Unlock should look like an afterthought.
             primaryButtonLabel: .init(text: ShieldCopy.closeButton, color: .black),
             primaryButtonBackgroundColor: .white,
-            secondaryButtonLabel: ShieldCopy.unlockButton(for: group, opensLeft: opensLeft).map {
-                .init(text: $0, color: UIColor(white: ShieldCopy.unlockWhite, alpha: 1))
-            }
+            secondaryButtonLabel: unlockLabel,
+            secondaryButtonSubmenuItems: unlockLabel == nil ? nil : ShieldCopy.unlockMenu
+        )
+    }
+
+    /// Before iOS 26.4 there's no menu, so Unlock works with one tap.
+    private func shield(named name: String?, opensLeft: Int?, group: BlockGroup?, unlockLabel: ShieldConfiguration.Label?) -> ShieldConfiguration {
+        ShieldConfiguration(
+            backgroundBlurStyle: .dark,
+            backgroundColor: UIColor(white: ShieldCopy.backgroundWhite, alpha: 1),
+            icon: UIImage(systemName: "hourglass"),
+            title: .init(text: ShieldCopy.title(for: name), color: .white),
+            subtitle: ShieldCopy.subtitle(for: group, opensLeft: opensLeft).map { .init(text: $0, color: .lightGray) },
+            primaryButtonLabel: .init(text: ShieldCopy.closeButton, color: .black),
+            primaryButtonBackgroundColor: .white,
+            secondaryButtonLabel: unlockLabel
         )
     }
 }
