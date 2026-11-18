@@ -24,6 +24,12 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
                group: GroupStore.group(webDomain: webDomain.token, category: category.token))
     }
 
+    /// Drawn white up front; as a template image iOS tints it too dark for this background.
+    private static let icon = UIImage(
+        systemName: ShieldCopy.iconName,
+        withConfiguration: UIImage.SymbolConfiguration(pointSize: ShieldCopy.iconPointSize, weight: .bold)
+    )?.withTintColor(.white, renderingMode: .alwaysOriginal)
+
     private func shield(named name: String?, target: ShieldTarget, group: BlockGroup?) -> ShieldConfiguration {
         let opensLeft = group.flatMap { TempUnlock.opensLeft($0, target) }
         let unlockLabel = ShieldCopy.unlockButton(for: group, opensLeft: opensLeft).map {
@@ -37,7 +43,7 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
         return ShieldConfiguration(
             backgroundBlurStyle: .dark,
             backgroundColor: UIColor(white: ShieldCopy.backgroundWhite, alpha: 1),
-            icon: UIImage(systemName: "hourglass"),
+            icon: Self.icon,
             title: .init(text: ShieldCopy.title(for: name), color: .white),
             subtitle: ShieldCopy.subtitle(for: group, opensLeft: opensLeft).map { .init(text: $0, color: .lightGray) },
             primaryButtonLabel: .init(text: ShieldCopy.closeButton, color: .black),
@@ -52,7 +58,7 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
         ShieldConfiguration(
             backgroundBlurStyle: .dark,
             backgroundColor: UIColor(white: ShieldCopy.backgroundWhite, alpha: 1),
-            icon: UIImage(systemName: "hourglass"),
+            icon: Self.icon,
             title: .init(text: ShieldCopy.title(for: name), color: .white),
             subtitle: ShieldCopy.subtitle(for: group, opensLeft: opensLeft).map { .init(text: $0, color: .lightGray) },
             primaryButtonLabel: .init(text: ShieldCopy.closeButton, color: .black),

@@ -81,8 +81,8 @@ struct ShieldPreview: View {
             Color(white: ShieldCopy.backgroundWhite).ignoresSafeArea()
             VStack(spacing: 16) {
                 Spacer()
-                Image(systemName: "hourglass")
-                    .font(.system(size: 56))
+                Image(systemName: ShieldCopy.iconName)
+                    .font(.system(size: ShieldCopy.iconPointSize, weight: .bold))
                     .foregroundStyle(.white)
                 Text(ShieldCopy.title(for: appName))
                     .font(.title2.bold())
