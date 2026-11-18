@@ -18,8 +18,8 @@ struct OnboardingView: View {
 
             VStack(alignment: .leading, spacing: 20) {
                 point("hand.raised", "Block the apps that pull you in, right now or on a daily schedule.")
-                point("lock.shield", "Uses Apple's Screen Time, so iOS does the blocking, even when this app is closed.")
-                point("eye.slash", "Private by design: this app never learns which apps you pick or what you do in them.")
+                point("lock.shield", "Uses Apple's Screen Time, so iOS does the blocking.")
+                point("eye.slash", "Your privacy matters: This app never learns which apps you pick or what you do in them.")
             }
 
             Spacer()

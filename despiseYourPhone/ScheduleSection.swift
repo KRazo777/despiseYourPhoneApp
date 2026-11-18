@@ -21,7 +21,7 @@ struct ScheduleSection: View {
         } footer: {
             Text(group.usesSchedule
                 ? "Repeats every day, even when the app is closed. iOS needs the window to be at least 15 minutes."
-                : "Blocks all day, every day, until you turn the group off.")
+                : "App group restrictions active all day, every day")
         }
     }
 }
