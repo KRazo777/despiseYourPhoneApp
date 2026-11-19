@@ -115,12 +115,12 @@ struct ShieldPreview: View {
         }
     }
 
-    /// Like the real shield: one tap, then the app opens once the open delay is over.
+    /// Like the real shield: the open is used on the tap, then the app opens once the open delay is over.
     private func unlockTapped() {
         guard !waiting else { return }
         waiting = true
+        if group.opensPerDay != nil { opensUsed += 1 }
         DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(group.openDelay)) {
-            if group.opensPerDay != nil { opensUsed += 1 }
             dismiss()
         }
     }

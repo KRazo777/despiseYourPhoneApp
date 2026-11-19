@@ -23,22 +23,23 @@ class ShieldActionExtension: ShieldActionDelegate {
             completionHandler(.close)
             return
         }
+        // Checked first: the waiting tap may have used the last open.
+        guard !TempUnlock.isWaiting(group, target) else {
+            completionHandler(.none)
+            return
+        }
         guard TempUnlock.canUnlock(group, target) else {
             // .defer redraws the shield, which hides the button.
             completionHandler(.defer)
             return
         }
-        guard !TempUnlock.isWaiting(group, target) else {
-            completionHandler(.none)
-            return
-        }
+        TempUnlock.beginUnlock(group, target)
         guard group.openDelay > 0 else {
             completionHandler(TempUnlock.unlock(group, target) ? .none : .defer)
             return
         }
         // The shield can't show a countdown, so hold the answer until the delay is over,
         // then lift the shield and let the app through.
-        TempUnlock.beginWaiting(group, target)
         DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(group.openDelay)) {
             completionHandler(TempUnlock.unlock(group, target) ? .none : .defer)
         }

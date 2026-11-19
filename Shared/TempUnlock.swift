@@ -58,9 +58,10 @@ enum TempUnlock {
         return defaults.dictionary(forKey: opensKey(groupID)) as? [String: Int] ?? [:]
     }
 
-    private static func useOpen(_ groupID: UUID, _ target: ShieldTarget, now: Date) {
+    /// Adds `count` to this target's opens used today (-1 gives one back).
+    private static func useOpen(_ groupID: UUID, _ target: ShieldTarget, count: Int = 1, now: Date) {
         var used = opensUsedToday(groupID, now: now)
-        used[target.key, default: 0] += 1
+        used[target.key] = max(0, used[target.key, default: 0] + count)
         AppGroup.defaults.set(today(now), forKey: opensDayKey(groupID))
         AppGroup.defaults.set(used, forKey: opensKey(groupID))
     }
@@ -86,15 +87,19 @@ enum TempUnlock {
         return elapsed >= 0 && elapsed < TimeInterval(group.openDelay + 5)
     }
 
-    static func beginWaiting(_ group: BlockGroup, _ target: ShieldTarget, now: Date = .now) {
+    /// Confirming Unlock uses up one of the app's opens straight away, before any open delay,
+    /// and ignores further taps until `unlock` runs. Leaving during the delay doesn't give it back.
+    static func beginUnlock(_ group: BlockGroup, _ target: ShieldTarget, now: Date = .now) {
         AppGroup.defaults.set(now.timeIntervalSince1970, forKey: requestedAtKey(group.id, target))
+        if group.opensPerDay != nil { useOpen(group.id, target, now: now) }
     }
 
-    /// Lets this app through for the group's open duration and uses up one of its opens.
-    /// Returns true if it worked.
+    /// Lets this app through for the group's open duration. Call `beginUnlock` first;
+    /// the open it used is given back if the unlock fails. Returns true if it worked.
     static func unlock(_ group: BlockGroup, _ target: ShieldTarget, now: Date = .now) -> Bool {
         AppGroup.defaults.removeObject(forKey: requestedAtKey(group.id, target))
-        guard canUnlock(group, target, now: now) else { return false }
+        // The open is already paid for, so only strict mode can stop it now.
+        guard !(group.isStrict(at: now) && group.opensPerDay == nil) else { return false }
 
         var unlocks = activeUnlocks(group.id, now: now)
         unlocks[target.key] = now.addingTimeInterval(TimeInterval(group.unlockMinutes * 60))
@@ -102,11 +107,11 @@ enum TempUnlock {
         tokens[target.key] = target.tokenData
         guard scheduleRelock(group, unlocks: unlocks, now: now) else {
             // Without a monitor nothing would re-block, so keep the shield up.
+            if group.opensPerDay != nil { useOpen(group.id, target, count: -1, now: now) }
             return false
         }
         saveUnlocks(group.id, unlocks)
         AppGroup.defaults.set(tokens, forKey: tokensKey(group.id))
-        if group.opensPerDay != nil { useOpen(group.id, target, now: now) }
         GroupStore.refresh(group)
         return true
     }
