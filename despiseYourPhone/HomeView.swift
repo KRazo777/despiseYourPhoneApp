@@ -1,9 +1,14 @@
 import SwiftUI
+import FamilyControls
 
 /// Main screen: overall blocking status and the list of block groups.
 struct HomeView: View {
     @State private var groups: [BlockGroup]
-    @State private var authorized = ScreenTimeAccess.isApproved
+    /// Observed because iOS reports the status as not determined for a moment at launch,
+    /// then updates it.
+    @ObservedObject private var authorization = AuthorizationCenter.shared
+    /// False for the first moment after launch, while the status may not have loaded yet.
+    @State private var statusSettled = false
     @State private var newGroup: BlockGroup?
     @State private var errorMessage: String?
 
@@ -31,7 +36,7 @@ struct HomeView: View {
                     }
                 }
 
-                if !authorized {
+                if needsAccess {
                     Section {
                         Button("Allow Screen Time access") { requestAuthorization() }
                     } footer: {
@@ -67,6 +72,10 @@ struct HomeView: View {
                 }
             }
             .task {
+                try? await Task.sleep(for: .seconds(1))
+                statusSettled = true
+            }
+            .task {
                 // Strict mode may have ended while the app was closed.
                 if !DemoMode.isOn { GroupStore.updateAppRemovalLock(groups) }
             }
@@ -80,6 +89,12 @@ struct HomeView: View {
                 Text(errorMessage ?? "")
             }
         }
+    }
+
+    /// Hides the access button during the launch moment instead of flashing it.
+    private var needsAccess: Bool {
+        guard !ScreenTimeAccess.isApproved else { return false }
+        return statusSettled || authorization.authorizationStatus != .notDetermined
     }
 
     private func sync(removed: [BlockGroup]) {
@@ -98,7 +113,6 @@ struct HomeView: View {
         Task {
             do {
                 try await ScreenTimeAccess.request()
-                authorized = ScreenTimeAccess.isApproved
             } catch {
                 errorMessage = error.localizedDescription
             }
