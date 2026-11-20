@@ -24,7 +24,15 @@ class ShieldActionExtension: ShieldActionDelegate {
             completionHandler(.close)
             return
         }
-        DebugLog.add("tap \(action.rawValue) \(target.key.prefix(10)) delay=\(group.openDelay) state=\(TempUnlock.request(group, target))")
+        let alreadyUnlocked = TempUnlock.activeUnlocks(group.id)[target.key] != nil
+        DebugLog.add("tap \(action.rawValue) \(target.key.prefix(10)) delay=\(group.openDelay) state=\(TempUnlock.request(group, target)) unlocked=\(alreadyUnlocked)")
+        // The delay ended and the app is unlocked, but iOS left the shield up (seen after
+        // Close during the wait). Any tap lets the app through without using another open.
+        if alreadyUnlocked {
+            GroupStore.refresh(group)
+            completionHandler(.none)
+            return
+        }
         // Checked before canUnlock: a waiting request may have used the last open.
         switch TempUnlock.request(group, target) {
         case .waiting, .ready:
@@ -35,7 +43,7 @@ class ShieldActionExtension: ShieldActionDelegate {
                 return
             }
             if case .waiting = TempUnlock.request(group, target) {
-                // "Cancel Unlock" gives the open back and leaves the app.
+                // "Cancel Unlock" gives the open back and leaves the app, the same as Close.
                 TempUnlock.cancelUnlock(group, target)
                 completionHandler(.close)
             } else {

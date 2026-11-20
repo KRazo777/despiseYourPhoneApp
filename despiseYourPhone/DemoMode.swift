@@ -121,7 +121,7 @@ struct ShieldPreview: View {
     }
 
     /// Like the real shield: the open is used on the tap, then the app opens once the open delay
-    /// is over unless "Cancel open" was tapped first.
+    /// is over unless "Cancel Unlock" or Close was tapped first.
     private func unlockTapped() {
         guard request == .none else { return }
         if group.opensPerDay != nil { opensUsed += 1 }

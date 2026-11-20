@@ -41,7 +41,7 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
             return shield(named: name, opensLeft: opensLeft, request: request, group: group, unlockLabel: unlockLabel)
         }
         // Close is the bright, inviting choice; Unlock is dim and opens an
-        // "Are you sure?" menu instead of unlocking straight away. "Cancel open" and
+        // "Are you sure?" menu instead of unlocking straight away. "Cancel Unlock" and
         // "Open now" act on the first tap.
         return ShieldConfiguration(
             backgroundBlurStyle: .dark,
