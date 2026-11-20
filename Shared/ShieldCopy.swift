@@ -16,11 +16,15 @@ enum ShieldCopy {
 
     /// Only groups with an opens limit get a subtitle: a row of squares, one per open
     /// (filled for opens left, empty for opens used), and the count.
-    static func subtitle(for group: BlockGroup?, opensLeft: Int?) -> String? {
+    /// While a confirmed Unlock waits out the delay, a line says when the app opens.
+    static func subtitle(for group: BlockGroup?, opensLeft: Int?, opensAt: Date? = nil, now: Date = .now) -> String? {
         var lines: [String] = []
         if let limit = group?.opensPerDay, let opensLeft {
             let squares = String(repeating: "■ ", count: opensLeft) + String(repeating: "□ ", count: limit - opensLeft)
             lines += [squares.trimmingCharacters(in: .whitespaces), "\(opensLeft)/\(limit) opens left"]
+        }
+        if let opensAt {
+            lines.append("Opening in \(max(1, Int(opensAt.timeIntervalSince(now).rounded(.up))))s")
         }
         return lines.isEmpty ? nil : lines.joined(separator: "\n")
     }

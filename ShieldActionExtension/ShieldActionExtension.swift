@@ -23,6 +23,7 @@ class ShieldActionExtension: ShieldActionDelegate {
             completionHandler(.close)
             return
         }
+        DebugLog.add("action \(action.rawValue) \(target.key.prefix(10)) waiting=\(TempUnlock.isWaiting(group, target)) delay=\(group.openDelay)")
         if TempUnlock.isWaiting(group, target) {
             // Close gives the open back and leaves; the held answer then does nothing.
             // Other taps are ignored.
@@ -49,10 +50,23 @@ class ShieldActionExtension: ShieldActionDelegate {
             completionHandler(TempUnlock.unlock(group, target) ? .none : .defer)
             return
         }
+        // EXPERIMENT: rewrite the shield store while holding the answer, to see whether
+        // iOS asks for the shield's look again and redraws it with the new count.
+        GroupStore.applyShield(group)
+        DebugLog.add("nudge1 same shield re-applied")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            GroupStore.nudgeShield(group)
+            DebugLog.add("nudge2 categories toggled")
+        }
+        for tick in stride(from: 5, to: group.openDelay, by: 5) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(tick)) { DebugLog.add("alive \(tick)s") }
+        }
         // Holding the answer keeps the extension running through the delay. Answering then
         // is what makes iOS take the shield down, so the app opens the moment it's over.
         DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(group.openDelay)) {
-            completionHandler(TempUnlock.unlock(group, target, onlyIfRequested: true) ? .none : .defer)
+            let opened = TempUnlock.unlock(group, target, onlyIfRequested: true)
+            DebugLog.add("answer opened=\(opened)")
+            completionHandler(opened ? .none : .defer)
         }
     }
 

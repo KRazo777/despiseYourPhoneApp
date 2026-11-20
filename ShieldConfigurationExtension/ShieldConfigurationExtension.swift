@@ -32,11 +32,13 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
 
     private func shield(named name: String?, target: ShieldTarget, group: BlockGroup?) -> ShieldConfiguration {
         let opensLeft = group.flatMap { TempUnlock.opensLeft($0, target) }
+        let opensAt = group.flatMap { TempUnlock.opensAt($0, target) }
+        DebugLog.add("config \(target.key.prefix(10)) opensLeft=\(opensLeft.map(String.init) ?? "-") waiting=\(opensAt != nil)")
         let unlockLabel = ShieldCopy.unlockButton(for: group, opensLeft: opensLeft).map {
             ShieldConfiguration.Label(text: $0, color: UIColor(white: ShieldCopy.unlockWhite, alpha: 1))
         }
         guard #available(iOS 26.4, *) else {
-            return shield(named: name, opensLeft: opensLeft, group: group, unlockLabel: unlockLabel)
+            return shield(named: name, opensLeft: opensLeft, opensAt: opensAt, group: group, unlockLabel: unlockLabel)
         }
         // Close is the bright, inviting choice; Unlock is dim and opens an
         // "Are you sure?" menu instead of unlocking straight away.
@@ -45,7 +47,7 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
             backgroundColor: UIColor(white: ShieldCopy.backgroundWhite, alpha: 1),
             icon: Self.icon,
             title: .init(text: ShieldCopy.title(for: name), color: .white),
-            subtitle: ShieldCopy.subtitle(for: group, opensLeft: opensLeft).map { .init(text: $0, color: .lightGray) },
+            subtitle: ShieldCopy.subtitle(for: group, opensLeft: opensLeft, opensAt: opensAt).map { .init(text: $0, color: .lightGray) },
             primaryButtonLabel: .init(text: ShieldCopy.closeButton, color: .black),
             primaryButtonBackgroundColor: .white,
             secondaryButtonLabel: unlockLabel,
@@ -54,13 +56,13 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
     }
 
     /// Before iOS 26.4 there's no menu, so Unlock works with one tap.
-    private func shield(named name: String?, opensLeft: Int?, group: BlockGroup?, unlockLabel: ShieldConfiguration.Label?) -> ShieldConfiguration {
+    private func shield(named name: String?, opensLeft: Int?, opensAt: Date?, group: BlockGroup?, unlockLabel: ShieldConfiguration.Label?) -> ShieldConfiguration {
         ShieldConfiguration(
             backgroundBlurStyle: .dark,
             backgroundColor: UIColor(white: ShieldCopy.backgroundWhite, alpha: 1),
             icon: Self.icon,
             title: .init(text: ShieldCopy.title(for: name), color: .white),
-            subtitle: ShieldCopy.subtitle(for: group, opensLeft: opensLeft).map { .init(text: $0, color: .lightGray) },
+            subtitle: ShieldCopy.subtitle(for: group, opensLeft: opensLeft, opensAt: opensAt).map { .init(text: $0, color: .lightGray) },
             primaryButtonLabel: .init(text: ShieldCopy.closeButton, color: .black),
             primaryButtonBackgroundColor: .white,
             secondaryButtonLabel: unlockLabel
