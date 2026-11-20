@@ -47,7 +47,7 @@ struct GroupDetailView: View {
                 }
             }
 
-            Section("Apps") {
+            Section("Blocked Apps") {
                 BlockedAppsList(group: group)
             }
 
@@ -85,7 +85,7 @@ struct GroupDetailView: View {
             } header: {
                 Text("Strict mode")
             } footer: {
-                Text("No turning off, editing, or deleting this group, and no Unlock button, until time runs out. Daily opens still work.")
+                Text("No turning off, editing, or deleting this group, until time runs out. Daily opens still work.")
             }
 
             if DemoMode.isOn {

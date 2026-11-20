@@ -31,9 +31,9 @@ enum ShieldCopy {
         return lines.isEmpty ? nil : lines.joined(separator: "\n")
     }
 
-    /// Tapping Unlock opens this menu first (iOS 26.4 and later), in this order.
-    static let confirmUnlock = "Yes, unlock"
-    static let cancelUnlock = "Never mind"
+    /// Tapping Unlock opens this menu first (iOS 26.4nd later), in this order.
+    static let confirmUnlock = "Unlock"
+    static let cancelUnlock = "Nevermind"
     static let unlockMenu = [confirmUnlock, cancelUnlock]
 
     /// While waiting out the open delay, the Unlock button gives the open back instead.
