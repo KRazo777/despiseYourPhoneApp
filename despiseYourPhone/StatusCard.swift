@@ -22,11 +22,25 @@ struct StatusCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(20)
             .background(
-                blocking.isEmpty ? AnyShapeStyle(.background) : AnyShapeStyle(Color.statusGreen),
+                blocking.isEmpty ? AnyShapeStyle(.background) : AnyShapeStyle(Self.blockingGradient),
                 in: RoundedRectangle(cornerRadius: 20)
             )
+            // A faint highlight along the edge and a soft green glow make it feel glossy.
+            .overlay {
+                if !blocking.isEmpty {
+                    RoundedRectangle(cornerRadius: 20).strokeBorder(.white.opacity(0.25), lineWidth: 1)
+                }
+            }
+            .shadow(color: blocking.isEmpty ? .clear : Color.statusGreen.opacity(0.35), radius: 12, y: 6)
         }
     }
+
+    /// Bright lime at the top left, deepening to emerald. Black text reads on every part of it.
+    private static let blockingGradient = LinearGradient(
+        colors: [Color(red: 0x7C / 255, green: 0xF2 / 255, blue: 0x7C / 255), .statusGreen, Color(red: 0x16 / 255, green: 0xA3 / 255, blue: 0x4A / 255)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
 
     private func detail(blocking: [BlockGroup]) -> String {
         if !blocking.isEmpty {
