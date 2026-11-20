@@ -16,35 +16,31 @@ enum ShieldCopy {
 
     /// Only groups with an opens limit get a subtitle: a row of squares, one per open
     /// (filled for opens left, empty for opens used), and the count.
-    /// While a confirmed Unlock waits out the open delay, a line under the count says so.
-    static func subtitle(for group: BlockGroup?, opensLeft: Int?, request: TempUnlock.Request = .none, now: Date = .now) -> String? {
+    /// With an open delay, a line under the count says when the app will open.
+    static func subtitle(for group: BlockGroup?, opensLeft: Int?) -> String? {
         var lines: [String] = []
         if let limit = group?.opensPerDay, let opensLeft {
             let squares = String(repeating: "■ ", count: opensLeft) + String(repeating: "□ ", count: limit - opensLeft)
             lines += [squares.trimmingCharacters(in: .whitespaces), "\(opensLeft)/\(limit) opens left"]
         }
-        switch request {
-        case .none: break
-        case .waiting(let until): lines.append("Opening in \(max(1, Int(until.timeIntervalSince(now).rounded(.up))))s")
-        case .ready: lines.append("Ready to open")
+        // The shield can't change while the delay runs, so say it up front.
+        if let group, group.openDelay > 0, unlockButton(for: group, opensLeft: opensLeft) != nil {
+            lines.append("Opens \(group.openDelay)s after you confirm")
         }
         return lines.isEmpty ? nil : lines.joined(separator: "\n")
     }
 
     /// Tapping Unlock opens this menu first (iOS 26.4nd later), in this order.
-    static let confirmUnlock = "Unlock"
+    static func confirmUnlock(for group: BlockGroup) -> String {
+        group.openDelay > 0 ? "Unlock in \(group.openDelay)s" : "Unlock"
+    }
     static let cancelUnlock = "Nevermind"
-    static let unlockMenu = [confirmUnlock, cancelUnlock]
-
-    /// After confirming, the Unlock button becomes "Open" with this menu (iOS 26.4 and later).
-    /// Open goes in once the open delay is over; Cancel open gives the open back.
-    static let openButton = "Open"
-    static let cancelOpenButton = "Cancel open"
-    static let openMenu = [openButton, cancelOpenButton]
+    static func unlockMenu(for group: BlockGroup) -> [String] {
+        [confirmUnlock(for: group), cancelUnlock]
+    }
 
     /// The Unlock button's text, or nil to hide the button.
-    static func unlockButton(for group: BlockGroup?, opensLeft: Int?, request: TempUnlock.Request = .none) -> String? {
-        guard request == .none else { return openButton }
+    static func unlockButton(for group: BlockGroup?, opensLeft: Int?) -> String? {
         guard let group, opensLeft != 0 else { return nil }
         // Strict mode removes Unlock, but a daily opens limit still applies.
         if group.isStrict(at: .now) && group.opensPerDay == nil { return nil }

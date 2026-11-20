@@ -34,8 +34,8 @@ enum ShieldTarget {
 }
 
 /// "Unlock": the block screen's second button.
-/// Confirming uses one of that app's opens. Without an open delay the app gets through at once;
-/// with one, "Open" lets it through once the delay is over and "Cancel open" gives the open back.
+/// Confirming uses one of that app's opens and lets the app through once the group's open
+/// delay is over. Close during the delay gives the open back.
 /// Each app has its own daily opens count. The rest of the group stays blocked, and the
 /// monitor extension blocks the app again when its open duration is up.
 enum TempUnlock {
@@ -80,22 +80,21 @@ enum TempUnlock {
         return !(group.isStrict(at: now) && group.opensPerDay == nil)
     }
 
-    /// Where a confirmed Unlock stands for one app.
-    enum Request: Equatable {
-        case none
-        /// The open is used and the open delay is running.
-        case waiting(until: Date)
-        /// The delay is over and "Open" lets the app through without using another open.
-        case ready
+    /// A little longer than the delay itself, for the held answer to reach iOS.
+    private static let waitGrace: TimeInterval = 10
+
+    /// True while a confirmed Unlock is waiting out the open delay.
+    static func isWaiting(_ group: BlockGroup, _ target: ShieldTarget, now: Date = .now) -> Bool {
+        guard let requestedAt = requestedAt(group, target) else { return false }
+        let elapsed = now.timeIntervalSince(requestedAt)
+        return elapsed >= 0 && elapsed < TimeInterval(group.openDelay) + waitGrace
     }
 
-    static func request(_ group: BlockGroup, _ target: ShieldTarget, now: Date = .now) -> Request {
-        // A request from an earlier day is forgotten along with that day's opens.
-        guard let requestedAt = requestedAt(group, target), requestedAt >= Calendar.current.startOfDay(for: now) else {
-            return .none
-        }
-        let opensAt = requestedAt.addingTimeInterval(TimeInterval(group.openDelay))
-        return now < opensAt ? .waiting(until: opensAt) : .ready
+    /// If iOS stopped the extension mid-wait, the request is left behind and the app never
+    /// opened, so give its open back.
+    static func dropStaleRequest(_ group: BlockGroup, _ target: ShieldTarget, now: Date = .now) {
+        guard requestedAt(group, target) != nil, !isWaiting(group, target, now: now) else { return }
+        cancelUnlock(group, target, now: now)
     }
 
     private static func requestedAt(_ group: BlockGroup, _ target: ShieldTarget) -> Date? {
@@ -104,13 +103,13 @@ enum TempUnlock {
     }
 
     /// Confirming Unlock uses up one of the app's opens straight away, before any open delay.
-    /// `cancelUnlock` (Cancel open or Close) gives it back.
+    /// `cancelUnlock` (Close during the delay) gives it back.
     static func beginUnlock(_ group: BlockGroup, _ target: ShieldTarget, now: Date = .now) {
         AppGroup.defaults.set(now.timeIntervalSince1970, forKey: requestedAtKey(group.id, target))
         if group.opensPerDay != nil { useOpen(group.id, target, now: now) }
     }
 
-    /// "Cancel open": drops the waiting request and gives its open back.
+    /// Drops the waiting request and gives its open back.
     static func cancelUnlock(_ group: BlockGroup, _ target: ShieldTarget, now: Date = .now) {
         guard requestedAt(group, target) != nil else { return }
         AppGroup.defaults.removeObject(forKey: requestedAtKey(group.id, target))

@@ -122,7 +122,12 @@ struct GroupEditorView: View {
         }
     }
 
+    #if DEBUG
+    /// Longer delays to try on a development build before offering them to everyone.
+    static let delayChoices = [0, 5, 10, 15, 30, 60, 180]
+    #else
     static let delayChoices = [0, 5, 10, 15, 30]
+    #endif
     /// 0 means the block screen never offers Unlock for this group.
     static let opensChoices = Array(0...20)
     private static let durationOptions = [1, 2, 5, 10, 15, 20, 30, 45, 60]
