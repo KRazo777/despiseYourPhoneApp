@@ -3,7 +3,7 @@ import ManagedSettings
 
 /// Handles taps on the block screen's buttons.
 /// Close leaves the app. Unlock lets just that app through for a few minutes (see TempUnlock),
-/// after the group's open delay if it has one.
+/// after the group's open delay if it has one. During the delay the button is "Cancel open".
 class ShieldActionExtension: ShieldActionDelegate {
     override func handle(action: ShieldAction, for application: ApplicationToken, completionHandler: @escaping (ShieldActionResponse) -> Void) {
         respond(to: action, target: .app(application), group: GroupStore.group(application: application), completionHandler: completionHandler)
@@ -19,29 +19,48 @@ class ShieldActionExtension: ShieldActionDelegate {
     }
 
     private func respond(to action: ShieldAction, target: ShieldTarget, group: BlockGroup?, completionHandler: @escaping (ShieldActionResponse) -> Void) {
-        guard isUnlockRequest(action), let group else {
+        guard let group else {
             completionHandler(.close)
             return
         }
-        // Checked first: the waiting tap may have used the last open.
-        guard !TempUnlock.isWaiting(group, target) else {
-            completionHandler(.none)
+        // Checked before canUnlock: a waiting request may have used the last open.
+        switch TempUnlock.request(group, target) {
+        case .waiting:
+            // "Cancel open" gives the open back and redraws the normal shield.
+            guard action == .secondaryButtonPressed else { break }
+            TempUnlock.cancelUnlock(group, target)
+            completionHandler(.defer)
+            return
+        case .ready:
+            // "Open now": the timer didn't get to run, and the open is already paid for.
+            guard action == .secondaryButtonPressed else { break }
+            completionHandler(TempUnlock.unlock(group, target) ? .none : .defer)
+            return
+        case .none:
+            guard isUnlockRequest(action) else { break }
+            startUnlock(group, target, completionHandler: completionHandler)
             return
         }
+        completionHandler(.close)
+    }
+
+    private func startUnlock(_ group: BlockGroup, _ target: ShieldTarget, completionHandler: @escaping (ShieldActionResponse) -> Void) {
         guard TempUnlock.canUnlock(group, target) else {
             // .defer redraws the shield, which hides the button.
             completionHandler(.defer)
             return
         }
-        TempUnlock.beginUnlock(group, target)
+        let requestedAt = TempUnlock.beginUnlock(group, target)
         guard group.openDelay > 0 else {
             completionHandler(TempUnlock.unlock(group, target) ? .none : .defer)
             return
         }
-        // The shield can't show a countdown, so hold the answer until the delay is over,
-        // then lift the shield and let the app through.
+        // Redraw now so the shield shows the new count and "Cancel open", then lift it once
+        // the delay is over, unless the open was cancelled. iOS may stop the extension
+        // before then; the shield offers "Open now" in that case.
+        completionHandler(.defer)
         DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(group.openDelay)) {
-            completionHandler(TempUnlock.unlock(group, target) ? .none : .defer)
+            _ = TempUnlock.unlock(group, target, requestedAt: requestedAt)
         }
     }
 
