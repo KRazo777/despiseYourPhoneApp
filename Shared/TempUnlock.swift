@@ -105,7 +105,7 @@ enum TempUnlock {
     }
 
     /// Confirming Unlock uses up one of the app's opens straight away, before any open delay.
-    /// Leaving during the delay doesn't give it back; only `cancelUnlock` does.
+    /// Leaving during the delay doesn't give it back; `cancelUnlock` (Cancel open or Close) does.
     /// Returns the request's time, which `unlock` checks so a cancelled request can't open the app.
     @discardableResult
     static func beginUnlock(_ group: BlockGroup, _ target: ShieldTarget, now: Date = .now) -> Date {

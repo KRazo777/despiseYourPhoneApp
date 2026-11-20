@@ -3,7 +3,8 @@ import ManagedSettings
 
 /// Handles taps on the block screen's buttons.
 /// Close leaves the app. Unlock lets just that app through for a few minutes (see TempUnlock),
-/// after the group's open delay if it has one. During the delay the button is "Cancel open".
+/// after the group's open delay if it has one. During the delay, "Cancel open" or Close
+/// gives the open back.
 class ShieldActionExtension: ShieldActionDelegate {
     override func handle(action: ShieldAction, for application: ApplicationToken, completionHandler: @escaping (ShieldActionResponse) -> Void) {
         respond(to: action, target: .app(application), group: GroupStore.group(application: application), completionHandler: completionHandler)
@@ -25,16 +26,21 @@ class ShieldActionExtension: ShieldActionDelegate {
         }
         // Checked before canUnlock: a waiting request may have used the last open.
         switch TempUnlock.request(group, target) {
-        case .waiting:
-            // "Cancel open" gives the open back and redraws the normal shield.
-            guard action == .secondaryButtonPressed else { break }
-            TempUnlock.cancelUnlock(group, target)
-            completionHandler(.defer)
-            return
-        case .ready:
-            // "Open now": the timer didn't get to run, and the open is already paid for.
-            guard action == .secondaryButtonPressed else { break }
-            completionHandler(TempUnlock.unlock(group, target) ? .none : .defer)
+        case .waiting, .ready:
+            // Close gives the open back too, and the waiting timer then does nothing.
+            guard action == .secondaryButtonPressed else {
+                TempUnlock.cancelUnlock(group, target)
+                completionHandler(.close)
+                return
+            }
+            if case .waiting = TempUnlock.request(group, target) {
+                // "Cancel open" gives the open back and redraws the normal shield.
+                TempUnlock.cancelUnlock(group, target)
+                completionHandler(.defer)
+            } else {
+                // "Open now": the timer didn't get to run, and the open is already paid for.
+                completionHandler(TempUnlock.unlock(group, target) ? .none : .defer)
+            }
             return
         case .none:
             guard isUnlockRequest(action) else { break }
