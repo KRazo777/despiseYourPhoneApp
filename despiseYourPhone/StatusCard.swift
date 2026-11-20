@@ -21,7 +21,7 @@ struct StatusCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(20)
             .background(
-                blocking.isEmpty ? AnyShapeStyle(.background) : AnyShapeStyle(Color.indigo),
+                blocking.isEmpty ? AnyShapeStyle(.background) : AnyShapeStyle(Color.appAccent),
                 in: RoundedRectangle(cornerRadius: 20)
             )
         }

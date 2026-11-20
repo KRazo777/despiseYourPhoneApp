@@ -10,7 +10,7 @@ struct GroupRow: View {
             HStack(spacing: 14) {
                 Image(systemName: blocking ? "lock.fill" : "lock.open")
                     .font(.title3)
-                    .foregroundStyle(blocking ? AnyShapeStyle(Color.indigo) : AnyShapeStyle(.secondary))
+                    .foregroundStyle(blocking ? AnyShapeStyle(Color.appAccent) : AnyShapeStyle(.secondary))
                     .frame(width: 28)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(group.name)

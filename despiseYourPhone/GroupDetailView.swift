@@ -43,7 +43,7 @@ struct GroupDetailView: View {
                     let blocking = GroupStore.isBlocking(group, at: context.date)
                     Label(GroupStatus.text(for: group, at: context.date), systemImage: blocking ? "lock.fill" : "lock.open")
                         .font(.headline)
-                        .foregroundStyle(blocking ? AnyShapeStyle(Color.indigo) : AnyShapeStyle(.primary))
+                        .foregroundStyle(blocking ? AnyShapeStyle(Color.appAccent) : AnyShapeStyle(.primary))
                 }
             }
 
@@ -68,7 +68,7 @@ struct GroupDetailView: View {
             Section {
                 if strict, let until = group.strictUntil {
                     Label("On until \(GroupStatus.timeText(until))", systemImage: "lock.shield.fill")
-                        .foregroundStyle(.indigo)
+                        .foregroundStyle(Color.appAccent)
                 } else {
                     Menu {
                         Button("For 1 hour") { strictChoice = .now.addingTimeInterval(3600) }
