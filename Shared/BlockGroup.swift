@@ -60,6 +60,34 @@ struct BlockGroup: Codable, Identifiable, Equatable {
             : minutes >= start || minutes < end
     }
 
+    // MARK: - One group per app
+
+    /// A copy holding only the apps, categories, and websites `other` also has.
+    /// A category in one group and an app from it in another can't be matched,
+    /// since iOS hides which apps a category holds.
+    func shared(with other: BlockGroup) -> BlockGroup {
+        var copy = self
+        copy.selection.applicationTokens.formIntersection(other.selection.applicationTokens)
+        copy.selection.categoryTokens.formIntersection(other.selection.categoryTokens)
+        copy.selection.webDomainTokens.formIntersection(other.selection.webDomainTokens)
+        copy.demoApps = demoApps.filter(other.demoApps.contains)
+        return copy
+    }
+
+    func overlaps(_ other: BlockGroup) -> Bool {
+        shared(with: other).hasApps
+    }
+
+    /// A copy without anything `other` also has.
+    func removingItems(of other: BlockGroup) -> BlockGroup {
+        var copy = self
+        copy.selection.applicationTokens.subtract(other.selection.applicationTokens)
+        copy.selection.categoryTokens.subtract(other.selection.categoryTokens)
+        copy.selection.webDomainTokens.subtract(other.selection.webDomainTokens)
+        copy.demoApps.removeAll(where: other.demoApps.contains)
+        return copy
+    }
+
     // MARK: - Names for Screen Time
 
     var storeName: ManagedSettingsStore.Name { .init("group-\(id.uuidString)") }

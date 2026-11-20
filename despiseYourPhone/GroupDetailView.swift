@@ -117,10 +117,9 @@ struct GroupDetailView: View {
             }
         }
         .sheet(item: $editing) { draft in
-            GroupEditorView(group: draft, isNew: false) { saved in
-                if let index = groups.firstIndex(where: { $0.id == saved.id }) {
-                    groups[index] = saved
-                }
+            GroupEditorView(group: draft, isNew: false, otherGroups: groups.filter { $0.id != draft.id }) { saved in
+                // Apps moved here leave their old groups.
+                groups = groups.map { $0.id == saved.id ? saved : $0.removingItems(of: saved) }
             }
         }
         .fullScreenCover(isPresented: $showingShieldPreview) {

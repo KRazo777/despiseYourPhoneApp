@@ -118,6 +118,30 @@ enum GroupStore {
         try center.startMonitoring(group.scheduleActivity, during: schedule)
     }
 
+    // MARK: - One group per app
+
+    /// An app can only be in one group, but groups saved before that rule may share apps.
+    /// A group that's on keeps them (strict first, then the longest open delay), or the
+    /// newest group if none is on, and the others lose them.
+    static func removeSharedApps(now: Date = .now) {
+        let groups = load()
+        let byPriority = groups.indices.sorted { a, b in
+            let (x, y) = (groups[a], groups[b])
+            if x.isOn != y.isOn { return x.isOn }
+            if x.isStrict(at: now) != y.isStrict(at: now) { return x.isStrict(at: now) }
+            if x.openDelay != y.openDelay { return x.openDelay > y.openDelay }
+            return a > b
+        }
+        var result = groups
+        var claimed: [BlockGroup] = []
+        for index in byPriority {
+            for keeper in claimed { result[index] = result[index].removingItems(of: keeper) }
+            claimed.append(result[index])
+        }
+        guard result != groups else { return }
+        try? sync(result)
+    }
+
     // MARK: - Moving from the single-list version
 
     private static let migratedKey = "migratedToGroups"

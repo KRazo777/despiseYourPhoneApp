@@ -16,6 +16,7 @@ struct HomeView: View {
     init(groups: [BlockGroup]? = nil) {
         if groups == nil && !DemoMode.isOn {
             GroupStore.migrateIfNeeded()
+            GroupStore.removeSharedApps()
         }
         _groups = State(initialValue: groups ?? GroupStore.load())
     }
@@ -67,8 +68,9 @@ struct HomeView: View {
             }
             .navigationTitle("DespiseYourPhone")
             .sheet(item: $newGroup) { draft in
-                GroupEditorView(group: draft, isNew: true) { saved in
-                    groups.append(saved)
+                GroupEditorView(group: draft, isNew: true, otherGroups: groups) { saved in
+                    // Apps moved here leave their old groups.
+                    groups = groups.map { $0.removingItems(of: saved) } + [saved]
                 }
             }
             .task {

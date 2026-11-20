@@ -2,17 +2,23 @@ import SwiftUI
 import FamilyControls
 
 /// Create or edit a group: name, apps, and when it blocks.
+/// An app can only be in one group, so apps already in another group must be
+/// moved here or dropped before saving. `onSave` removes moved apps from their old groups.
 struct GroupEditorView: View {
     @State private var group: BlockGroup
     let isNew: Bool
+    let otherGroups: [BlockGroup]
     let onSave: (BlockGroup) -> Void
 
     @State private var showingPicker = false
+    /// Groups whose shared apps the user chose to move here.
+    @State private var movingFrom: Set<UUID> = []
     @Environment(\.dismiss) private var dismiss
 
-    init(group: BlockGroup, isNew: Bool, onSave: @escaping (BlockGroup) -> Void) {
+    init(group: BlockGroup, isNew: Bool, otherGroups: [BlockGroup] = [], onSave: @escaping (BlockGroup) -> Void) {
         _group = State(initialValue: group)
         self.isNew = isNew
+        self.otherGroups = otherGroups
         self.onSave = onSave
     }
 
@@ -26,6 +32,10 @@ struct GroupEditorView: View {
                 Section("Apps") {
                     BlockedAppsList(group: group)
                     Button(group.hasApps ? "Edit apps" : "Choose apps") { showingPicker = true }
+                }
+
+                ForEach(overlapping) { other in
+                    sharedAppsSection(with: other)
                 }
 
                 ScheduleSection(group: $group)
@@ -67,13 +77,48 @@ struct GroupEditorView: View {
                         onSave(group)
                         dismiss()
                     }
-                    .disabled(group.name.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(group.name.trimmingCharacters(in: .whitespaces).isEmpty || !unresolved.isEmpty)
                 }
             }
             .familyActivityPicker(isPresented: DemoMode.isOn ? .constant(false) : $showingPicker, selection: $group.selection)
             .sheet(isPresented: DemoMode.isOn ? $showingPicker : .constant(false)) {
                 DemoAppPicker(selected: demoApps)
             }
+        }
+    }
+
+    /// Other groups that share apps with this one.
+    private var overlapping: [BlockGroup] {
+        otherGroups.filter { group.overlaps($0) }
+    }
+
+    /// Shared apps still waiting for Move or Remove. A strict group's apps can't be moved.
+    private var unresolved: [BlockGroup] {
+        overlapping.filter { !movingFrom.contains($0.id) || $0.isStrict(at: .now) }
+    }
+
+    private func sharedAppsSection(with other: BlockGroup) -> some View {
+        let strict = other.isStrict(at: .now)
+        return Section {
+            BlockedAppsList(group: group.shared(with: other))
+            if movingFrom.contains(other.id) && !strict {
+                Text("Moves here when you save.")
+                    .foregroundStyle(.secondary)
+                Button("Undo") { movingFrom.remove(other.id) }
+            } else {
+                if !strict {
+                    Button("Move to this group") { movingFrom.insert(other.id) }
+                }
+                Button("Remove from this group", role: .destructive) {
+                    group = group.removingItems(of: other)
+                }
+            }
+        } header: {
+            Text("Already in \(other.name)")
+        } footer: {
+            Text(strict
+                 ? "An app can only be in one group, and \(other.name) is in strict mode, so its apps can't move."
+                 : "An app can only be in one group.")
         }
     }
 
