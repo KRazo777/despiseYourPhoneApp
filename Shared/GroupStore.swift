@@ -26,8 +26,12 @@ enum GroupStore {
     }
 
     /// The group that blocks this app, website, or category.
+    /// An app can be in several groups, so groups that are blocking right now come first,
+    /// longest open delay first, then the rest in list order.
     static func group(application: ApplicationToken? = nil, webDomain: WebDomainToken? = nil, category: ActivityCategoryToken? = nil) -> BlockGroup? {
-        let groups = load()
+        let all = load()
+        let blocking = all.filter { isBlocking($0) }.sorted { $0.openDelay > $1.openDelay }
+        let groups = blocking + all.filter { !isBlocking($0) }
         if let application, let match = groups.first(where: { $0.selection.applicationTokens.contains(application) }) {
             return match
         }
