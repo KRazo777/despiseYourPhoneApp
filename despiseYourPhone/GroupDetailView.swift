@@ -78,7 +78,10 @@ struct GroupDetailView: View {
                         }
                         Button("For 24 hours") { strictChoice = .now.addingTimeInterval(24 * 3600) }
                     } label: {
+                        // A Menu in a list only reacts to its label, so stretch it across the row.
                         Label("Turn on strict mode", systemImage: "lock.shield")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
                     }
                     .disabled(!group.isOn)
                 }
