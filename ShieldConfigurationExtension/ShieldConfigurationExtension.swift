@@ -33,7 +33,6 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
     private func shield(named name: String?, target: ShieldTarget, group: BlockGroup?) -> ShieldConfiguration {
         let opensLeft = group.flatMap { TempUnlock.opensLeft($0, target) }
         let request = group.map { TempUnlock.request($0, target) } ?? .none
-        DebugLog.add("draw \(target.key.prefix(10)) opensLeft=\(opensLeft.map(String.init) ?? "-") state=\(request)")
         let unlockLabel = ShieldCopy.unlockButton(for: group, opensLeft: opensLeft, request: request).map {
             ShieldConfiguration.Label(text: $0, color: UIColor(white: ShieldCopy.unlockWhite, alpha: 1))
         }

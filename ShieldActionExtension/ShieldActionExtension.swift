@@ -25,7 +25,6 @@ class ShieldActionExtension: ShieldActionDelegate {
             return
         }
         let alreadyUnlocked = TempUnlock.activeUnlocks(group.id)[target.key] != nil
-        DebugLog.add("tap \(action.rawValue) \(target.key.prefix(10)) delay=\(group.openDelay) state=\(TempUnlock.request(group, target)) unlocked=\(alreadyUnlocked)")
         // The delay ended and the app is unlocked, but iOS left the shield up (seen after
         // Close during the wait). Any tap lets the app through without using another open.
         if alreadyUnlocked {
@@ -74,10 +73,8 @@ class ShieldActionExtension: ShieldActionDelegate {
         // the delay is over, unless the open was cancelled. iOS may stop the extension
         // before then; the shield offers "Open now" in that case.
         completionHandler(.defer)
-        DebugLog.add("confirmed, answered defer")
         DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(group.openDelay)) {
-            let opened = TempUnlock.unlock(group, target, requestedAt: requestedAt)
-            DebugLog.add("timer fired, shield lifted=\(opened)")
+            _ = TempUnlock.unlock(group, target, requestedAt: requestedAt)
         }
     }
 
