@@ -26,7 +26,7 @@ enum ShieldCopy {
         switch request {
         case .none: break
         case .waiting(let until): lines.append("Opening in \(max(1, Int(until.timeIntervalSince(now).rounded(.up))))s")
-        case .ready: lines.append("Your open is ready")
+        case .ready: lines.append("Ready to open")
         }
         return lines.isEmpty ? nil : lines.joined(separator: "\n")
     }
@@ -36,18 +36,15 @@ enum ShieldCopy {
     static let cancelUnlock = "Nevermind"
     static let unlockMenu = [confirmUnlock, cancelUnlock]
 
-    /// While waiting out the open delay, the Unlock button gives the open back instead.
+    /// After confirming, the Unlock button becomes "Open" with this menu (iOS 26.4 and later).
+    /// Open goes in once the open delay is over; Cancel open gives the open back.
+    static let openButton = "Open"
     static let cancelOpenButton = "Cancel open"
-    /// If iOS stopped the wait early, this lets the app through without using another open.
-    static let openNowButton = "Open now"
+    static let openMenu = [openButton, cancelOpenButton]
 
     /// The Unlock button's text, or nil to hide the button.
     static func unlockButton(for group: BlockGroup?, opensLeft: Int?, request: TempUnlock.Request = .none) -> String? {
-        switch request {
-        case .waiting: return cancelOpenButton
-        case .ready: return openNowButton
-        case .none: break
-        }
+        guard request == .none else { return openButton }
         guard let group, opensLeft != 0 else { return nil }
         // Strict mode removes Unlock, but a daily opens limit still applies.
         if group.isStrict(at: .now) && group.opensPerDay == nil { return nil }

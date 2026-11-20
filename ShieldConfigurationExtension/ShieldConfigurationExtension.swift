@@ -40,8 +40,8 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
             return shield(named: name, opensLeft: opensLeft, request: request, group: group, unlockLabel: unlockLabel)
         }
         // Close is the bright, inviting choice; Unlock is dim and opens an
-        // "Are you sure?" menu instead of unlocking straight away. "Cancel open" and
-        // "Open now" act on the first tap.
+        // "Are you sure?" menu instead of unlocking straight away. After confirming,
+        // it opens the Open / Cancel open menu.
         return ShieldConfiguration(
             backgroundBlurStyle: .dark,
             backgroundColor: UIColor(white: ShieldCopy.backgroundWhite, alpha: 1),
@@ -51,7 +51,7 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
             primaryButtonLabel: .init(text: ShieldCopy.closeButton, color: .black),
             primaryButtonBackgroundColor: .white,
             secondaryButtonLabel: unlockLabel,
-            secondaryButtonSubmenuItems: unlockLabel == nil || request != .none ? nil : ShieldCopy.unlockMenu
+            secondaryButtonSubmenuItems: unlockLabel == nil ? nil : request == .none ? ShieldCopy.unlockMenu : ShieldCopy.openMenu
         )
     }
 

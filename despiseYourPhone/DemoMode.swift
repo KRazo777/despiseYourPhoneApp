@@ -94,7 +94,7 @@ struct ShieldPreview: View {
                 }
                 Spacer()
                 Button {
-                    dismiss()
+                    cancelTapped()
                 } label: {
                     Text(ShieldCopy.closeButton)
                         .font(.headline)
@@ -104,38 +104,45 @@ struct ShieldPreview: View {
                         .background(.white, in: RoundedRectangle(cornerRadius: 14))
                 }
                 if let title = ShieldCopy.unlockButton(for: group, opensLeft: opensLeft, request: request) {
-                    if request == .none {
-                        Menu(title) {
+                    Menu(title) {
+                        if request == .none {
                             Button(ShieldCopy.confirmUnlock) { unlockTapped() }
                             Button(ShieldCopy.cancelUnlock) { dismiss() }
+                        } else {
+                            Button(ShieldCopy.openButton) { openTapped() }
+                            Button(ShieldCopy.cancelOpenButton) { cancelTapped() }
                         }
-                        .foregroundStyle(Color(white: ShieldCopy.unlockWhite))
-                    } else {
-                        Button(title) { cancelTapped() }
-                            .foregroundStyle(Color(white: ShieldCopy.unlockWhite))
                     }
+                    .foregroundStyle(Color(white: ShieldCopy.unlockWhite))
                 }
             }
             .padding(24)
         }
     }
 
-    /// Like the real shield: the open is used on the tap, then the app opens once the open delay
-    /// is over unless "Cancel open" was tapped first.
+    /// Like the real shield: the open is used on the tap. Without a delay the app opens at once;
+    /// with one, the button becomes the Open menu.
     private func unlockTapped() {
         guard request == .none else { return }
         if group.opensPerDay != nil { opensUsed += 1 }
-        let until = Date.now.addingTimeInterval(TimeInterval(group.openDelay))
-        request = .waiting(until: until)
-        DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(group.openDelay)) {
-            if request == .waiting(until: until) { dismiss() }
+        guard group.openDelay > 0 else { return dismiss() }
+        request = .waiting(until: .now.addingTimeInterval(TimeInterval(group.openDelay)))
+    }
+
+    /// Opens once the delay is over, unless Cancel open or Close comes first.
+    private func openTapped() {
+        guard case .waiting(let until) = request else { return dismiss() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + max(0, until.timeIntervalSinceNow)) {
+            if request != .none { dismiss() }
         }
     }
 
+    /// Cancel open and Close give the open back and leave.
     private func cancelTapped() {
-        guard request != .none else { return }
-        request = .none
-        if group.opensPerDay != nil { opensUsed -= 1 }
+        if request != .none {
+            request = .none
+            if group.opensPerDay != nil { opensUsed -= 1 }
+        }
         dismiss()
     }
 }

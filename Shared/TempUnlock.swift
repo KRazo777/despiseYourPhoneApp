@@ -34,8 +34,8 @@ enum ShieldTarget {
 }
 
 /// "Unlock": the block screen's second button.
-/// Confirming unlocks just that app (or site), after the group's open delay if it has one.
-/// The open is used on the tap, and "Cancel open" gives it back during the delay.
+/// Confirming uses one of that app's opens. Without an open delay the app gets through at once;
+/// with one, "Open" lets it through once the delay is over and "Cancel open" gives the open back.
 /// Each app has its own daily opens count. The rest of the group stays blocked, and the
 /// monitor extension blocks the app again when its open duration is up.
 enum TempUnlock {
@@ -85,8 +85,7 @@ enum TempUnlock {
         case none
         /// The open is used and the open delay is running.
         case waiting(until: Date)
-        /// The delay is over but the app wasn't let through (iOS stopped the extension
-        /// before its timer fired), so the next tap opens it without using another open.
+        /// The delay is over and "Open" lets the app through without using another open.
         case ready
     }
 
@@ -105,13 +104,10 @@ enum TempUnlock {
     }
 
     /// Confirming Unlock uses up one of the app's opens straight away, before any open delay.
-    /// Leaving during the delay doesn't give it back; `cancelUnlock` (Cancel open or Close) does.
-    /// Returns the request's time, which `unlock` checks so a cancelled request can't open the app.
-    @discardableResult
-    static func beginUnlock(_ group: BlockGroup, _ target: ShieldTarget, now: Date = .now) -> Date {
+    /// `cancelUnlock` (Cancel open or Close) gives it back.
+    static func beginUnlock(_ group: BlockGroup, _ target: ShieldTarget, now: Date = .now) {
         AppGroup.defaults.set(now.timeIntervalSince1970, forKey: requestedAtKey(group.id, target))
         if group.opensPerDay != nil { useOpen(group.id, target, now: now) }
-        return now
     }
 
     /// "Cancel open": drops the waiting request and gives its open back.
@@ -122,10 +118,10 @@ enum TempUnlock {
     }
 
     /// Lets this app through for the group's open duration. Call `beginUnlock` first;
-    /// the open it used is given back if the unlock fails. Pass the time `beginUnlock`
-    /// returned to do nothing if that request was cancelled. Returns true if it worked.
-    static func unlock(_ group: BlockGroup, _ target: ShieldTarget, requestedAt expected: Date? = nil, now: Date = .now) -> Bool {
-        if let expected, requestedAt(group, target)?.timeIntervalSince1970 != expected.timeIntervalSince1970 { return false }
+    /// the open it used is given back if the unlock fails. With `onlyIfRequested`, does nothing
+    /// once the request is gone (cancelled, or already opened). Returns true if it worked.
+    static func unlock(_ group: BlockGroup, _ target: ShieldTarget, onlyIfRequested: Bool = false, now: Date = .now) -> Bool {
+        if onlyIfRequested && requestedAt(group, target) == nil { return false }
         AppGroup.defaults.removeObject(forKey: requestedAtKey(group.id, target))
         // The open is already paid for, so only strict mode can stop it now.
         guard !(group.isStrict(at: now) && group.opensPerDay == nil) else { return false }
