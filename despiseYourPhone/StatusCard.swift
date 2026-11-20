@@ -17,7 +17,8 @@ struct StatusCard: View {
                     .font(.subheadline)
                     .opacity(0.85)
             }
-            .foregroundStyle(blocking.isEmpty ? AnyShapeStyle(.primary) : AnyShapeStyle(.white))
+            // Dark text, since white is hard to read on the light green.
+            .foregroundStyle(blocking.isEmpty ? AnyShapeStyle(.primary) : AnyShapeStyle(.black))
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(20)
             .background(
