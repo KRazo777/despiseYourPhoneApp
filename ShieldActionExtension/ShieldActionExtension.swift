@@ -2,8 +2,9 @@ import Foundation
 import ManagedSettings
 
 /// Handles taps on the block screen's buttons.
-/// Close leaves the app. Unlock uses an open and lets just that app through for a few minutes
-/// (see TempUnlock) once the group's open delay is over. Close during the delay gives the open back.
+/// Close leaves the app. Unlock lets just that app through for a few minutes (see TempUnlock),
+/// after the group's open delay if it has one. During the delay, "Cancel Unlock" or Close
+/// gives the open back.
 class ShieldActionExtension: ShieldActionDelegate {
     override func handle(action: ShieldAction, for application: ApplicationToken, completionHandler: @escaping (ShieldActionResponse) -> Void) {
         respond(to: action, target: .app(application), group: GroupStore.group(application: application), completionHandler: completionHandler)
@@ -23,41 +24,57 @@ class ShieldActionExtension: ShieldActionDelegate {
             completionHandler(.close)
             return
         }
-        if TempUnlock.isWaiting(group, target) {
-            // Close gives the open back and leaves; the held answer then does nothing.
-            // Other taps are ignored.
-            guard action == .primaryButtonPressed else {
-                completionHandler(.none)
+        DebugLog.add("tap \(action.rawValue) \(target.key.prefix(10)) delay=\(group.openDelay) state=\(TempUnlock.request(group, target))")
+        // Checked before canUnlock: a waiting request may have used the last open.
+        switch TempUnlock.request(group, target) {
+        case .waiting, .ready:
+            // Close gives the open back too, and the waiting timer then does nothing.
+            guard action == .secondaryButtonPressed else {
+                TempUnlock.cancelUnlock(group, target)
+                completionHandler(.close)
                 return
             }
-            TempUnlock.cancelUnlock(group, target)
-            completionHandler(.close)
+            if case .waiting = TempUnlock.request(group, target) {
+                // "Cancel Unlock" gives the open back and leaves the app.
+                TempUnlock.cancelUnlock(group, target)
+                completionHandler(.close)
+            } else {
+                // "Open now": the timer didn't get to run, and the open is already paid for.
+                completionHandler(TempUnlock.unlock(group, target) ? .none : .defer)
+            }
+            return
+        case .none:
+            guard isUnlockRequest(action) else { break }
+            startUnlock(group, target, completionHandler: completionHandler)
             return
         }
-        TempUnlock.dropStaleRequest(group, target)
-        guard isUnlockRequest(action) else {
-            completionHandler(.close)
-            return
-        }
+        completionHandler(.close)
+    }
+
+    private func startUnlock(_ group: BlockGroup, _ target: ShieldTarget, completionHandler: @escaping (ShieldActionResponse) -> Void) {
         guard TempUnlock.canUnlock(group, target) else {
             // .defer redraws the shield, which hides the button.
             completionHandler(.defer)
             return
         }
-        TempUnlock.beginUnlock(group, target)
+        let requestedAt = TempUnlock.beginUnlock(group, target)
         guard group.openDelay > 0 else {
             completionHandler(TempUnlock.unlock(group, target) ? .none : .defer)
             return
         }
-        // Holding the answer keeps the extension running through the delay. Answering then
-        // is what makes iOS take the shield down, so the app opens the moment it's over.
+        // Redraw now so the shield shows the new count and "Cancel Unlock", then lift it once
+        // the delay is over, unless the open was cancelled. iOS may stop the extension
+        // before then; the shield offers "Open now" in that case.
+        completionHandler(.defer)
+        DebugLog.add("confirmed, answered defer")
         DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(group.openDelay)) {
-            completionHandler(TempUnlock.unlock(group, target, onlyIfRequested: true) ? .none : .defer)
+            let opened = TempUnlock.unlock(group, target, requestedAt: requestedAt)
+            DebugLog.add("timer fired, shield lifted=\(opened)")
         }
     }
 
-    /// From iOS 26.4, Unlock opens a menu and only its first item ("Unlock in Ns") counts;
-    /// "Nevermind" falls through to Close. Earlier versions unlock on the button itself.
+    /// From iOS 26.4, Unlock opens a menu and only "Yes, unlock" (the first item) counts;
+    /// "Never mind" falls through to Close. Earlier versions unlock on the button itself.
     private func isUnlockRequest(_ action: ShieldAction) -> Bool {
         if #available(iOS 26.4, *) {
             return action == .firstSecondarySubmenuItemPressed

@@ -68,7 +68,7 @@ struct ShieldPreview: View {
     let group: BlockGroup
     @Environment(\.dismiss) private var dismiss
     /// Stand in for what the real shield saves when Unlock is confirmed.
-    @State private var waiting = false
+    @State private var request: TempUnlock.Request = .none
     /// Each app has its own count; the preview starts this app at none used.
     @State private var opensUsed = 0
 
@@ -87,14 +87,14 @@ struct ShieldPreview: View {
                 Text(ShieldCopy.title(for: appName))
                     .font(.title2.bold())
                     .foregroundStyle(.white)
-                if let subtitle = ShieldCopy.subtitle(for: group, opensLeft: opensLeft) {
+                if let subtitle = ShieldCopy.subtitle(for: group, opensLeft: opensLeft, request: request) {
                     Text(subtitle)
                         .foregroundStyle(Color(uiColor: .lightGray))
                         .multilineTextAlignment(.center)
                 }
                 Spacer()
                 Button {
-                    closeTapped()
+                    dismiss()
                 } label: {
                     Text(ShieldCopy.closeButton)
                         .font(.headline)
@@ -103,35 +103,39 @@ struct ShieldPreview: View {
                         .padding()
                         .background(.white, in: RoundedRectangle(cornerRadius: 14))
                 }
-                if let title = ShieldCopy.unlockButton(for: group, opensLeft: opensLeft) {
-                    Menu(title) {
-                        Button(ShieldCopy.confirmUnlock(for: group)) { unlockTapped() }
-                        Button(ShieldCopy.cancelUnlock) { dismiss() }
+                if let title = ShieldCopy.unlockButton(for: group, opensLeft: opensLeft, request: request) {
+                    if request == .none {
+                        Menu(title) {
+                            Button(ShieldCopy.confirmUnlock) { unlockTapped() }
+                            Button(ShieldCopy.cancelUnlock) { dismiss() }
+                        }
+                        .foregroundStyle(Color(white: ShieldCopy.unlockWhite))
+                    } else {
+                        Button(title) { cancelTapped() }
+                            .foregroundStyle(Color(white: ShieldCopy.unlockWhite))
                     }
-                    .foregroundStyle(Color(white: ShieldCopy.unlockWhite))
                 }
             }
             .padding(24)
         }
     }
 
-    /// Like the real shield: the open is used on the tap, and the app opens once the open
-    /// delay is over. The screen doesn't change meanwhile, since the real one can't.
+    /// Like the real shield: the open is used on the tap, then the app opens once the open delay
+    /// is over unless "Cancel open" was tapped first.
     private func unlockTapped() {
-        guard !waiting else { return }
-        waiting = true
+        guard request == .none else { return }
         if group.opensPerDay != nil { opensUsed += 1 }
+        let until = Date.now.addingTimeInterval(TimeInterval(group.openDelay))
+        request = .waiting(until: until)
         DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(group.openDelay)) {
-            if waiting { dismiss() }
+            if request == .waiting(until: until) { dismiss() }
         }
     }
 
-    /// Close during the delay gives the open back.
-    private func closeTapped() {
-        if waiting {
-            waiting = false
-            if group.opensPerDay != nil { opensUsed -= 1 }
-        }
+    private func cancelTapped() {
+        guard request != .none else { return }
+        request = .none
+        if group.opensPerDay != nil { opensUsed -= 1 }
         dismiss()
     }
 }
