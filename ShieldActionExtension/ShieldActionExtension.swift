@@ -34,9 +34,9 @@ class ShieldActionExtension: ShieldActionDelegate {
                 return
             }
             if case .waiting = TempUnlock.request(group, target) {
-                // "Cancel open" gives the open back and redraws the normal shield.
+                // "Cancel open" gives the open back and leaves the app.
                 TempUnlock.cancelUnlock(group, target)
-                completionHandler(.defer)
+                completionHandler(.close)
             } else {
                 // "Open now": the timer didn't get to run, and the open is already paid for.
                 completionHandler(TempUnlock.unlock(group, target) ? .none : .defer)

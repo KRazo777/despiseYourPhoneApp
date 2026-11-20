@@ -136,6 +136,7 @@ struct ShieldPreview: View {
         guard request != .none else { return }
         request = .none
         if group.opensPerDay != nil { opensUsed -= 1 }
+        dismiss()
     }
 }
 

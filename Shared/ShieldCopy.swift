@@ -25,7 +25,7 @@ enum ShieldCopy {
         }
         switch request {
         case .none: break
-        case .waiting(let until): lines.append("Opening in about \(max(1, Int(until.timeIntervalSince(now).rounded(.up))))s")
+        case .waiting(let until): lines.append("Opening in \(max(1, Int(until.timeIntervalSince(now).rounded(.up))))s")
         case .ready: lines.append("Your open is ready")
         }
         return lines.isEmpty ? nil : lines.joined(separator: "\n")
