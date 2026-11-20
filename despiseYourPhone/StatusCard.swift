@@ -17,8 +17,7 @@ struct StatusCard: View {
                     .font(.subheadline)
                     .opacity(0.85)
             }
-            // Dark text, since white is hard to read on the bright green.
-            .foregroundStyle(blocking.isEmpty ? AnyShapeStyle(.primary) : AnyShapeStyle(.black))
+            .foregroundStyle(blocking.isEmpty ? AnyShapeStyle(.primary) : AnyShapeStyle(.white))
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(20)
             .background(
@@ -31,13 +30,16 @@ struct StatusCard: View {
                     RoundedRectangle(cornerRadius: 20).strokeBorder(.white.opacity(0.25), lineWidth: 1)
                 }
             }
-            .shadow(color: blocking.isEmpty ? .clear : Color.statusGreen.opacity(0.35), radius: 12, y: 6)
+            .shadow(color: blocking.isEmpty ? .clear : Self.blockingBlue.opacity(0.35), radius: 12, y: 6)
         }
     }
 
-    /// Bright lime at the top left, deepening to emerald. Black text reads on every part of it.
+    /// The accent blue, fixed so it doesn't lighten in dark mode.
+    private static let blockingBlue = Color(red: 0x00 / 255, green: 0x41 / 255, blue: 0xC2 / 255)
+
+    /// Bright blue at the top left, deepening to navy. White text reads on every part of it.
     private static let blockingGradient = LinearGradient(
-        colors: [Color(red: 0x7C / 255, green: 0xF2 / 255, blue: 0x7C / 255), .statusGreen, Color(red: 0x16 / 255, green: 0xA3 / 255, blue: 0x4A / 255)],
+        colors: [Color(red: 0x2F / 255, green: 0x66 / 255, blue: 0xDB / 255), blockingBlue, Color(red: 0x00 / 255, green: 0x2B / 255, blue: 0x87 / 255)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
