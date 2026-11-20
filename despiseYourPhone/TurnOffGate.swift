@@ -3,7 +3,7 @@ import SwiftUI
 /// Stands between you and turning off, editing, or deleting a group:
 /// a countdown, then a sentence you have to type exactly.
 struct TurnOffGate: View {
-    static let waitSeconds = 30
+    static let waitSeconds = 15
     static let phrase = "I despise my phone"
 
     let title: String
