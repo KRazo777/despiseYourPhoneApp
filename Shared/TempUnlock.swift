@@ -90,12 +90,6 @@ enum TempUnlock {
         return elapsed >= 0 && elapsed < TimeInterval(group.openDelay) + waitGrace
     }
 
-    /// When the waiting app opens, or nil if nothing is waiting.
-    static func opensAt(_ group: BlockGroup, _ target: ShieldTarget, now: Date = .now) -> Date? {
-        guard isWaiting(group, target, now: now), let requestedAt = requestedAt(group, target) else { return nil }
-        return requestedAt.addingTimeInterval(TimeInterval(group.openDelay))
-    }
-
     /// If iOS stopped the extension mid-wait, the request is left behind and the app never
     /// opened, so give its open back.
     static func dropStaleRequest(_ group: BlockGroup, _ target: ShieldTarget, now: Date = .now) {

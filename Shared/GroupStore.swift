@@ -75,16 +75,6 @@ enum GroupStore {
             : .specific(selection.categoryTokens, except: unlocked.webDomains)
     }
 
-    /// EXPERIMENT: changes the store without changing what's blocked.
-    static func nudgeShield(_ group: BlockGroup) {
-        let store = ManagedSettingsStore(named: group.storeName)
-        if store.shield.applicationCategories == nil {
-            store.shield.applicationCategories = .specific([], except: [])
-        } else if group.selection.categoryTokens.isEmpty {
-            store.shield.applicationCategories = nil
-        }
-    }
-
     static func clearShield(_ group: BlockGroup) {
         ManagedSettingsStore(named: group.storeName).clearAllSettings()
     }
