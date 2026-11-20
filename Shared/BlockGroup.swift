@@ -31,7 +31,11 @@ struct BlockGroup: Codable, Identifiable, Equatable {
     /// and the block screen has no Unlock button (daily opens still work).
     var strictUntil: Date?
 
-    var openDelay: Int { openDelaySeconds ?? 10 }
+    /// iOS stops waiting for the block screen's answer at about 30 seconds, after which the
+    /// app can't open on its own, so longer delays saved earlier are cut to this.
+    static let maxOpenDelay = 25
+
+    var openDelay: Int { min(openDelaySeconds ?? 10, Self.maxOpenDelay) }
 
     var hasApps: Bool {
         !selection.applicationTokens.isEmpty || !selection.categoryTokens.isEmpty
