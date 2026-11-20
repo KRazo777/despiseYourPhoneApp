@@ -16,16 +16,11 @@ enum ShieldCopy {
 
     /// Only groups with an opens limit get a subtitle: a row of squares, one per open
     /// (filled for opens left, empty for opens used), and the count.
-    /// With an open delay, a line under the count says when the app will open.
     static func subtitle(for group: BlockGroup?, opensLeft: Int?) -> String? {
         var lines: [String] = []
         if let limit = group?.opensPerDay, let opensLeft {
             let squares = String(repeating: "■ ", count: opensLeft) + String(repeating: "□ ", count: limit - opensLeft)
             lines += [squares.trimmingCharacters(in: .whitespaces), "\(opensLeft)/\(limit) opens left"]
-        }
-        // The shield can't change while the delay runs, so say it up front.
-        if let group, group.openDelay > 0, unlockButton(for: group, opensLeft: opensLeft) != nil {
-            lines.append("Opens \(group.openDelay)s after you confirm")
         }
         return lines.isEmpty ? nil : lines.joined(separator: "\n")
     }
