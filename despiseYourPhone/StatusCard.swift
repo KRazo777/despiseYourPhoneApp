@@ -17,12 +17,12 @@ struct StatusCard: View {
                     .font(.subheadline)
                     .opacity(0.85)
             }
-            // Dark text, since white is hard to read on the light green.
+            // Dark text, since white is hard to read on the bright green.
             .foregroundStyle(blocking.isEmpty ? AnyShapeStyle(.primary) : AnyShapeStyle(.black))
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(20)
             .background(
-                blocking.isEmpty ? AnyShapeStyle(.background) : AnyShapeStyle(Color.appAccent),
+                blocking.isEmpty ? AnyShapeStyle(.background) : AnyShapeStyle(Color.statusGreen),
                 in: RoundedRectangle(cornerRadius: 20)
             )
         }
